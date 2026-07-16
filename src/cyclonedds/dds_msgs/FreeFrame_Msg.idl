@@ -1,0 +1,14 @@
+module FreeFrame
+{
+   @extensibility(APPENDABLE)
+   struct Msg
+    {
+        @key uint8 msg_id;   // Can't increase infinitely
+        uint32 frame_id;
+        uint32 buffer_index; // 0 ~ 'buffer_number - 1'
+        uint64 phys_y_addr;
+        uint64 phys_uv_addr;
+        uint64 playback_pts;
+        uint64 system_time;
+    };
+};

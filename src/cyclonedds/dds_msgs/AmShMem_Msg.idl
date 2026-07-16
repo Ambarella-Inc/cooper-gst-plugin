@@ -1,0 +1,19 @@
+module AmShMem
+{
+   @extensibility(APPENDABLE)
+   struct Msg
+    {
+        @key uint8 dec_id;
+        uint8  slave_id;  // gst pipline id or cluster id
+        uint32 frame_id;
+        uint32 buffer_index; // 0 ~ 'buffer_number - 1'
+        uint32 width;
+        uint32 height;
+        uint32 pitch;
+        uint32 data_format;
+        uint64 phys_y_addr;
+        uint64 phys_uv_addr;
+        uint64 playback_pts;
+        uint64 system_time;
+    };
+};

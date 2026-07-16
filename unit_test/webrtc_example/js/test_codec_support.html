@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>WebRTC Codec Support Test (H264 & AV1)</title>
+    <script src="adapter-latest.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .codec-info {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .codec-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: #fafafa;
+            border-left: 4px solid #4CAF50;
+        }
+        .profile-baseline { color: green; }
+        .profile-high { color: red; }
+        .codec-h264 { border-left-color: #2196F3; }
+        .codec-av1 { border-left-color: #FF9800; }
+        .codec-vp8 { border-left-color: #9C27B0; }
+        .codec-vp9 { border-left-color: #E91E63; }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebRTC Codec Support Test</h1>
+    <p>This page helps you verify what video codecs (H264, AV1, VP8, VP9) your browser supports in WebRTC context.</p>
+
+    <div class="section">
+        <h2>1. Encoding Capabilities (Sending)</h2>
+        <button onclick="checkEncodingCapabilities()">Check Encoding Capabilities</button>
+        <div id="encoding-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Receiving Capabilities (Receiving)</h2>
+        <p><strong>Important:</strong> Even if your browser can decode High Profile in HTML5 video,
+        WebRTC receiving capabilities may be different!</p>
+        <button onclick="checkReceivingCapabilities()">Check Receiving Capabilities</button>
+        <div id="receiving-results"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Codec Support Reference</h2>
+
+        <h3>H264 Profiles</h3>
+        <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%; margin-bottom: 20px;">
+            <tr>
+                <th>Profile</th>
+                <th>profile-level-id</th>
+                <th>WebRTC Support</th>
+            </tr>
+            <tr>
+                <td>Constrained Baseline</td>
+                <td><code>42c016</code></td>
+                <td class="profile-baseline">✅ Required by WebRTC standard</td>
+            </tr>
+            <tr>
+                <td>Baseline</td>
+                <td><code>420016</code></td>
+                <td class="profile-baseline">✅ Widely supported</td>
+            </tr>
+            <tr>
+                <td>Main</td>
+                <td><code>4d0016</code></td>
+                <td>⚠️ Decoding only</td>
+            </tr>
+            <tr>
+                <td>High</td>
+                <td><code>64001e</code></td>
+                <td class="profile-high">❌ Limited support, often rejected</td>
+            </tr>
+        </table>
+
+        <h3>Other Video Codecs</h3>
+        <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
+            <tr>
+                <th>Codec</th>
+                <th>MIME Type</th>
+                <th>Browser Support</th>
+            </tr>
+            <tr>
+                <td><strong>AV1</strong></td>
+                <td><code>video/AV1</code></td>
+                <td>⚠️ Emerging support (Chrome 90+, Firefox 93+, Edge 90+)</td>
+            </tr>
+            <tr>
+                <td><strong>VP8</strong></td>
+                <td><code>video/VP8</code></td>
+                <td>✅ Widely supported (required by WebRTC standard)</td>
+            </tr>
+            <tr>
+                <td><strong>VP9</strong></td>
+                <td><code>video/VP9</code></td>
+                <td>✅ Widely supported (Chrome, Firefox, Edge)</td>
+            </tr>
+        </table>
+    </div>
+
+    <script>
+        function getCodecName(mimeType) {
+            if (mimeType.includes('H264')) return 'H264';
+            if (mimeType.includes('AV1')) return 'AV1';
+            if (mimeType.includes('VP8')) return 'VP8';
+            if (mimeType.includes('VP9')) return 'VP9';
+            return mimeType.split('/')[1] || 'Unknown';
+        }
+
+        function getCodecClass(mimeType) {
+            if (mimeType.includes('H264')) return 'codec-h264';
+            if (mimeType.includes('AV1')) return 'codec-av1';
+            if (mimeType.includes('VP8')) return 'codec-vp8';
+            if (mimeType.includes('VP9')) return 'codec-vp9';
+            return '';
+        }
+
+        function formatCodecInfo(codec) {
+            let html = '<div class="codec-info">';
+            html += '<strong>MIME Type:</strong> ' + codec.mimeType + '<br>';
+            if (codec.sdpFmtpLine) {
+                html += '<strong>SDP fmtp:</strong> ' + codec.sdpFmtpLine + '<br>';
+                // Extract profile-level-id for H264
+                const profileMatch = codec.sdpFmtpLine.match(/profile-level-id=([0-9a-fA-F]+)/i);
+                if (profileMatch) {
+                    const profileId = profileMatch[1];
+                    html += '<strong>Profile-Level-ID:</strong> <code>' + profileId + '</code> ';
+                    if (profileId.startsWith('42')) {
+                        html += '<span class="profile-baseline">(Baseline/Constrained Baseline)</span>';
+                    } else if (profileId.startsWith('64')) {
+                        html += '<span class="profile-high">(High Profile)</span>';
+                    } else if (profileId.startsWith('4d')) {
+                        html += '<span>(Main Profile)</span>';
+                    }
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function formatCodecSection(codecName, codecs, codecClass) {
+            if (codecs.length === 0) return '';
+
+            let html = '<div class="codec-section ' + codecClass + '">';
+            html += '<h3>' + codecName + ' (' + codecs.length + ' variant(s))</h3>';
+            codecs.forEach(codec => {
+                html += formatCodecInfo(codec);
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function checkEncodingCapabilities() {
+            const resultsDiv = document.getElementById('encoding-results');
+            resultsDiv.innerHTML = '<p>Checking...</p>';
+
+            try {
+                // Use static method, not constructor
+                const capabilities = RTCRtpSender.getCapabilities('video');
+
+                // Group codecs by type
+                const h264Codecs = capabilities.codecs.filter(c => c.mimeType === 'video/H264');
+                const av1Codecs = capabilities.codecs.filter(c => c.mimeType === 'video/AV1');
+                const vp8Codecs = capabilities.codecs.filter(c => c.mimeType === 'video/VP8');
+                const vp9Codecs = capabilities.codecs.filter(c => c.mimeType === 'video/VP9');
+                const otherCodecs = capabilities.codecs.filter(c =>
+                    !c.mimeType.includes('H264') && !c.mimeType.includes('AV1') &&
+                    !c.mimeType.includes('VP8') && !c.mimeType.includes('VP9')
+                );
+
+                let html = '<p><strong>Total video codecs found: ' + capabilities.codecs.length + '</strong></p>';
+
+                // H264
+                html += formatCodecSection('H264', h264Codecs, 'codec-h264');
+                if (h264Codecs.length > 0) {
+                    const hasBaseline = h264Codecs.some(c =>
+                        c.sdpFmtpLine && c.sdpFmtpLine.match(/profile-level-id=42[0-9a-fA-F]{4}/i)
+                    );
+                    if (hasBaseline) {
+                        html += '<p style="color: green;">✅ H264 Constrained Baseline Profile is supported</p>';
+                    }
+                }
+
+                // AV1
+                html += formatCodecSection('AV1', av1Codecs, 'codec-av1');
+                if (av1Codecs.length > 0) {
+                    html += '<p style="color: green;">✅ AV1 encoding is supported</p>';
+                } else {
+                    html += '<p style="color: orange;">⚠️ AV1 encoding is NOT supported</p>';
+                }
+
+                // VP8
+                html += formatCodecSection('VP8', vp8Codecs, 'codec-vp8');
+                if (vp8Codecs.length > 0) {
+                    html += '<p style="color: green;">✅ VP8 encoding is supported</p>';
+                }
+
+                // VP9
+                html += formatCodecSection('VP9', vp9Codecs, 'codec-vp9');
+                if (vp9Codecs.length > 0) {
+                    html += '<p style="color: green;">✅ VP9 encoding is supported</p>';
+                }
+
+                // Other codecs
+                if (otherCodecs.length > 0) {
+                    html += '<div class="codec-section"><h3>Other Codecs (' + otherCodecs.length + ')</h3>';
+                    otherCodecs.forEach(codec => {
+                        html += formatCodecInfo(codec);
+                    });
+                    html += '</div>';
+                }
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+            }
+        }
+
+        function checkReceivingCapabilities() {
+            const resultsDiv = document.getElementById('receiving-results');
+            resultsDiv.innerHTML = '<p>Checking...</p>';
+
+            try {
+                // Use static method, not constructor
+                const capabilities = RTCRtpReceiver.getCapabilities('video');
+
+                // Group codecs by type
+                const h264Codecs = capabilities.codecs.filter(c => c.mimeType === 'video/H264');
+                const av1Codecs = capabilities.codecs.filter(c => c.mimeType === 'video/AV1');
+                const vp8Codecs = capabilities.codecs.filter(c => c.mimeType === 'video/VP8');
+                const vp9Codecs = capabilities.codecs.filter(c => c.mimeType === 'video/VP9');
+                const otherCodecs = capabilities.codecs.filter(c =>
+                    !c.mimeType.includes('H264') && !c.mimeType.includes('AV1') &&
+                    !c.mimeType.includes('VP8') && !c.mimeType.includes('VP9')
+                );
+
+                let html = '<p><strong>Total video codecs found: ' + capabilities.codecs.length + '</strong></p>';
+                html += '<p style="color: orange;"><strong>Note:</strong> This is what the browser supports in WebRTC context, ' +
+                        'which may be different from HTML5 video decoding capabilities.</p>';
+
+                // H264
+                html += formatCodecSection('H264', h264Codecs, 'codec-h264');
+                if (h264Codecs.length > 0) {
+                    const hasBaseline = h264Codecs.some(c =>
+                        c.sdpFmtpLine && c.sdpFmtpLine.match(/profile-level-id=42[0-9a-fA-F]{4}/i)
+                    );
+                    if (hasBaseline) {
+                        html += '<p style="color: green;">✅ H264 Constrained Baseline Profile is supported for receiving</p>';
+                    }
+                    const hasHigh = h264Codecs.some(c =>
+                        c.sdpFmtpLine && c.sdpFmtpLine.match(/profile-level-id=64[0-9a-fA-F]{4}/i)
+                    );
+                    if (hasHigh) {
+                        html += '<p style="color: green;">✅ H264 High Profile is supported for receiving</p>';
+                    } else {
+                        html += '<p style="color: red;">❌ H264 High Profile is NOT supported for receiving (this explains why browsers reject it!)</p>';
+                    }
+                }
+
+                // AV1
+                html += formatCodecSection('AV1', av1Codecs, 'codec-av1');
+                if (av1Codecs.length > 0) {
+                    html += '<p style="color: green;">✅ AV1 receiving is supported</p>';
+                } else {
+                    html += '<p style="color: orange;">⚠️ AV1 receiving is NOT supported</p>';
+                }
+
+                // VP8
+                html += formatCodecSection('VP8', vp8Codecs, 'codec-vp8');
+                if (vp8Codecs.length > 0) {
+                    html += '<p style="color: green;">✅ VP8 receiving is supported</p>';
+                }
+
+                // VP9
+                html += formatCodecSection('VP9', vp9Codecs, 'codec-vp9');
+                if (vp9Codecs.length > 0) {
+                    html += '<p style="color: green;">✅ VP9 receiving is supported</p>';
+                }
+
+                // Other codecs
+                if (otherCodecs.length > 0) {
+                    html += '<div class="codec-section"><h3>Other Codecs (' + otherCodecs.length + ')</h3>';
+                    otherCodecs.forEach(codec => {
+                        html += formatCodecInfo(codec);
+                    });
+                    html += '</div>';
+                }
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+            }
+        }
+
+        // Auto-check on page load
+        window.onload = function() {
+            console.log('WebRTC H264 Codec Support Test Page Loaded');
+            console.log('Click the buttons above to check your browser\'s capabilities');
+        };
+    </script>
+</body>
+</html>

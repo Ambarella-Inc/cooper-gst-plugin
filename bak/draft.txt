@@ -1,0 +1,408 @@
+
+
+
+
+
+
+
+test_encode --resource-cfg dualvin_12_1080_streams.lua --enc-mode 0
+
+
+test_encode -S 0 -b 0 -H 1080p --bitrate 1000000 -N 150 -e \
+    -S 1 -b 0 -H 1080p --trigger_frame 1 -N 1 -e \
+    -S 2 -b 1 -H 720p --bitrate 750000 -N 30 -e \
+    -S 3 -b 1 -h 720p --bitrate 800000 -N 30 -e \
+    -S 4 -b 2 -H 360p --bitrate 150000 -N 150 -e \
+    -S 5 -b 2 -H 360p --bitrate 10000 -N 60 --frame-factor 1/30 -e \
+    -S 6 -b 3 -H 1080p --bitrate 100000 -N 150 -e \
+    -S 7 -b 3 -H 1080p --trigger_frame 1 -N 1 -e \
+    -S 8 -b 4 -H 720p --bitrate 750000 -N 30 -e \
+    -S 9 -b 4 -h 720p --bitrate 800000 -N 30 -e \
+    -S 10 -b 5 -H 360p --bitrate 150000 -N 150 -e \
+    -S 11 -b 5 -H 360p --bitrate 10000 -N 60 --frame-factor 1/30 -e
+
+
+test_encode -S 0 -b 0 -H 1080p --bitrate 1000000 -N 150 -e -S 1 -b 0 -H 1080p --trigger-frame 1 -N 1 -e -S 2 -b 1 -H 720p --bitrate 750000 -N 30 -e -S 3 -b 1 -h 720p --bitrate 800000 -N 30 -e -S 4 -b 2 -H 360p --bitrate 150000 -N 150 -e -S 5 -b 2 -H 360p --bitrate 10000 -N 60 --frame-factor 1/30 -e -S 6 -b 3 -H 1080p --bitrate 100000 -N 150 -e -S 7 -b 3 -H 1080p --trigger-frame 1 -N 1 -e -S 8 -b 4 -H 720p --bitrate 750000 -N 30 -e -S 9 -b 4 -h 720p --bitrate 800000 -N 30 -e -S 10 -b 5 -H 360p --bitrate 150000 -N 150 -e -S 11 -b 5 -H 360p --bitrate 10000 -N 60 --frame-factor 1/30 -e
+
+
+test_encode -A -s -B -s -C -s -D -s -E -s -S 5 -s -S 6 -s -S 7 -s -S 8 -s -S 9 -s -S 10 -s -S 11 -s
+
+
+
+
+gst-launch-1.0 -e amba_venccap name=venc ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream8 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream9 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 dm.stream10 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 dm.stream11 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+
+
+gst-launch-1.0 -e amba_venccap name=venc ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4
+
+
+
+
+
+
+
+
+
+
+
+
+    pipeline_create p1 amba_venccap name=venc enc=\
+      stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,abs-br:1,bitrate:1000000,N:150,start:1,\
+      stream_id:1,stop:1,b:0,type:h265,resolution:0.0.1920.1080,trigger_frame:1,N:1,start:1,\
+      stream_id:2,stop:1,b:1,type:h265,resolution:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,\
+      stream_id:3,stop:1,b:1,type:h264,resolution:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,\
+      stream_id:4,stop:1,b:2,type:h265,resolution:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,\
+      stream_id:5,stop:1,b:2,type:h265,resolution:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,\
+      stream_id:6,stop:1,b:3,type:h265,resolution:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,\
+      stream_id:7,stop:1,b:3,type:h265,resolution:0.0.2560.1440,trigger_frame:1,N:1,start:1,\
+      stream_id:8,stop:1,b:4,type:h265,resolution:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,\
+      stream_id:9,stop:1,b:4,type:h264,resolution:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,\
+      stream_id:10,stop:1,b:5,type:h265,resolution:0.0.640.360,abs-br:1,bitrate:200000,N:150,frame_factor:1/2,start:1,\
+      stream_id:11,stop:1,b:5,type:h265,resolution:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 \
+      ! amba_vencdemux name=dm filename-base=/tmp/heic/heic_0_%06d.heic dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 \
+      dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 \
+      dm.stream3 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 \
+      dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 \
+      dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 \
+      dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 \
+      dm.stream8 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 \
+      dm.stream9 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 \
+      dm.stream10 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 \
+      dm.stream11 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+
+
+
+
+
+test_encode -S 0 -s
+test_encode -S 0 -b 0 -H 1080p --bitrate 1000000 --idr 1 -M 1 -N 1 --trigger-frame 1 -e
+
+test_encode -S 0 --trigger-frame 1 --trigger-frame-num 1 --trigger-frame-repeat 0
+
+gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! amba_heicfilesink filename-base=/tmp/amba_%06d.heic
+
+
+
+init.sh --imx274_mipi
+test_aaa_service -a &
+test_encode --resource-cfg cv22_samsara_dual_vin_12_streams_20220825.lua --enc-mode 0
+test_encode  -S 0 -b 0 -H 1080p --frame-factor 1/15 -e \
+             -S 1 -b 0 -H 1080p --bitrate 1000000 -N 150 -e \
+             -S 2 -b 1 -H 720p --bitrate 750000 -N 30 -e \
+             -S 3 -b 1 -h 720p --bitrate 800000 -N 30 -e \
+             -S 4 -b 2 -H 360p --bitrate 150000 -N 150 -e \
+             -S 5 -b 2 -H 360p --bitrate 10000 -N 30 --frame-factor 1/15 -e \
+             -S 6 -b 3 -H 2560x1440 --frame-factor 1/30 -e \
+             -S 7 -b 3 -H 2560x1440 --bitrate 4000000 -N 300 -e \
+             -S 8 -b 4 -H 720p --bitrate 1000000 -N 48 --frame-factor 4/5 -e \
+             -S 9 -b 4 -h 720p --bitrate 800000 -N 40 --frame-factor 2/3 -e \
+             -S 10 -b 5 -H 360p --bitrate 200000 -N 150 --frame-factor 1/2 -e \
+             -S 11 -b 5 -H 360p --bitrate 10000 -N 30 --frame-factor 1/30 -e
+
+
+
+
+
+
+gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=h265.mp4 dm.stream1 ! queue ! amba_heicfilesink filename-base=/tmp/amba_%06d.heic
+
+gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! amba_heicfilesink filename-base=/tmp/amba_%06d.heic
+
+
+
+test_encode  -S 0 -b 0 -H 1080p --abs-br 1 --bitrate 1000000 -N 150 -e \
+             -S 1 -b 0 -H 1080p -N 1 --trigger-frame 1 --trigger-frame-num 1 --trigger-frame-repeat 0 -e \
+             -S 2 -b 1 -H 720p --abs-br 1 --bitrate 750000 -N 30 -e \
+             -S 3 -b 1 -h 720p --abs-br 1 --bitrate 800000 -N 30 -e \
+             -S 4 -b 2 -H 360p --abs-br 1 --bitrate 150000 -N 150 -e \
+             -S 5 -b 2 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/30 -e \
+             -S 6 -b 3 -H 2560x1440 --bitrate 4000000 -N 300 -e \
+             -S 7 -b 3 -H 2560x1440 -N 1 --trigger-frame 1 --trigger-frame-num 1 --trigger-frame-repeat 0 -e \
+             -S 8 -b 4 -H 720p --abs-br 1 --bitrate 1000000 -N 48 --frame-factor 4/5 -e \
+             -S 9 -b 4 -h 720p --abs-br 1 --bitrate 800000 -N 40 --frame-factor 2/3 -e \
+             -S 10 -b 5 -H 360p --abs-br 1 --bitrate 200000 -N 150 --frame-factor 1/2 -e \
+             -S 11 -b 5 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/60 -e
+
+
+
+			 -S 6 -b 2 -H 360p --bitrate 400000 -N 30 -e \
+
+
+
+
+
+15) draft command lines (please ignore this part)
+
+ 14.1) init.sh --imx274_mipi
+ 14.2) test_aaa_service -a &
+ 14.3) test_encode --resource-cfg dualvin_8_streams.lua --enc-mode 0
+
+ 14.4) set encoding parameters by amba_venccap (by gst-launch-1.0)
+
+ // set encoding parameters when create gstreamer pipeline (recording)
+ 14.4.1) gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,\
+    stream_id:1,stop:1,b:1,type:h265,resolution:0.0.1280.720,bitrate:750000,N:30,start:1,\
+    stream_id:2,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:150000,N:150,start:1,\
+    stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,\
+    stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,\
+    stream_id:5,stop:1,b:4,type:h265,resolution:0.0.1280.720,bitrate:1000000,N:48,frame_factor:4/5,start:1,\
+	stream_id:6,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:20000,N:150,frame_factor:1/2,start:1,\
+	stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1,\
+    ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 \
+	dm.stream1 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 \
+	dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 \
+	dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 \
+	dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 \
+	dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 \
+	dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 \
+	dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+   gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,b:1,type:h265,resolution:0.0.1280.720,bitrate:750000,N:30,start:1,stream_id:2,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:150000,N:150,start:1,stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,b:4,type:h265,resolution:0.0.1280.720,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+   gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,b:1,type:h265,resolution:0.0.1280.720,bitrate:750000,N:30,start:1,stream_id:2,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:150000,N:150,start:1,stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,b:4,type:h265,resolution:0.0.1280.720,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4
+
+   gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+ // set encoding parameters when create gstreamer pipeline (streaming)
+ 14.4.2) gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,\
+    stream_id:1,stop:1,b:1,type:h264,resolution:0.0.1280.720,bitrate:800000,N:30,start:1,\
+    stream_id:2,stop:1,b:2,type:h264,resolution:0.0.640.360,bitrate:400000,N:30,start:1,\
+    stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,\
+    stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,\
+    stream_id:5,stop:1,b:4,type:h264,resolution:0.0.1280.720,bitrate:800000,N:40,frame_factor:2/3,start:1,\
+	stream_id:6,stop:1,b:5,type:h264,resolution:0.0.640.360,bitrate:400000,N:40,frame_factor:2/3,start:1,\
+	stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1,\
+    ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 \
+	dm.stream1 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_1.mp4 \
+	dm.stream2 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_2.mp4 \
+	dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 \
+	dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 \
+	dm.stream5 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_1.mp4 \
+	dm.stream6 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_2.mp4 \
+	dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+   gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,b:1,type:h264,resolution:0.0.1280.720,bitrate:800000,N:30,start:1,stream_id:2,stop:1,b:2,type:h264,resolution:0.0.640.360,bitrate:400000,N:30,start:1,stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,b:4,type:h264,resolution:0.0.1280.720,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:6,stop:1,b:5,type:h264,resolution:0.0.640.360,bitrate:400000,N:40,frame_factor:2/3,start:1,stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_1.mp4 dm.stream2 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_2.mp4 dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_1.mp4 dm.stream6 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_2.mp4 dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+   gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,b:1,type:h264,resolution:0.0.1280.720,bitrate:800000,N:30,start:1,stream_id:2,stop:1,b:2,type:h264,resolution:0.0.640.360,bitrate:400000,N:30,start:1,stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,b:4,type:h264,resolution:0.0.1280.720,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:6,stop:1,b:5,type:h264,resolution:0.0.640.360,bitrate:400000,N:40,frame_factor:2/3,start:1,stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4
+
+   gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_1.mp4 dm.stream2 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_2.mp4 dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_1.mp4 dm.stream6 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_2.mp4 dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+ 14.5) set encoding parameters by amba_venccap (by gstd and gst-client)
+
+ // set encoding parameters when create gstreamer pipeline (recording)
+ 14.5.1) in gst-client, create pipeline
+    pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,\
+    stream_id:1,stop:1,b:1,type:h265,resolution:0.0.1280.720,bitrate:750000,N:30,start:1,\
+    stream_id:2,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:150000,N:150,start:1,\
+    stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,\
+    stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,\
+    stream_id:5,stop:1,b:4,type:h265,resolution:0.0.1280.720,bitrate:1000000,N:48,frame_factor:4/5,start:1,\
+	stream_id:6,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:20000,N:150,frame_factor:1/2,start:1,\
+	stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1,\
+    ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 \
+	dm.stream1 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 \
+	dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 \
+	dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 \
+	dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 \
+	dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 \
+	dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 \
+	dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+
+
+   pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,b:1,type:h265,resolution:0.0.1280.720,bitrate:750000,N:30,start:1,stream_id:2,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:150000,N:150,start:1,stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,b:4,type:h265,resolution:0.0.1280.720,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+   pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,b:1,type:h265,resolution:0.0.1280.720,bitrate:750000,N:30,start:1,stream_id:2,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:150000,N:150,start:1,stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,b:4,type:h265,resolution:0.0.1280.720,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4
+
+   pipeline_create p1 amba_venccap name=venc ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+
+   pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,b:1,type:h265,resolution:0.0.1280.720,bitrate:750000,N:30,start:1,stream_id:2,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:150000,N:150,start:1,stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,b:4,type:h265,resolution:0.0.1280.720,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+
+ 14.5.2) in gst-client, play pipeline
+    pipeline_play p1
+
+ 14.5.3) in gst-client, change bitrate, force IDR
+    element_set p1 venc enc stream_id:0,bitrate:1000000
+	element_set p1 venc enc stream_id:0,force_idr:1
+
+ 14.5.4) in gst-client, stop pipeline
+    pipeline_stop p1
+
+ 14.5.5) in gst-client, delete pipeline
+    pipeline_delete p1
+
+ 14.5.6) in gst-client, create pipeline again
+    pipeline_create p1 amba_venccap enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,\
+    stream_id:1,stop:1,b:1,type:h264,resolution:0.0.1280.720,bitrate:800000,N:30,start:1,\
+    stream_id:2,stop:1,b:2,type:h264,resolution:0.0.640.360,bitrate:400000,N:30,start:1,\
+    stream_id:3,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/30,start:1,\
+    stream_id:4,stop:1,b:3,type:h265,resolution:0.0.2560.1440,bitrate:4000000,N:300,start:1,\
+    stream_id:5,stop:1,b:4,type:h264,resolution:0.0.1280.720,bitrate:800000,N:40,frame_factor:2/3,start:1,\
+	stream_id:6,stop:1,b:5,type:h264,resolution:0.0.640.360,bitrate:400000,N:40,frame_factor:2/3,start:1,\
+	stream_id:7,stop:1,b:5,type:h265,resolution:0.0.640.360,bitrate:10000,N:60,frame_factor:1/60,start:1,\
+    ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 \
+	dm.stream1 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_1.mp4 \
+	dm.stream2 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_2.mp4 \
+	dm.stream3 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 \
+	dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 \
+	dm.stream5 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_1.mp4 \
+	dm.stream6 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_2.mp4 \
+	dm.stream7 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+ 14.6) set encoding parameters by test_encode (as reference)
+
+   // set encoding parameters by test_encode (recording)
+   14.6.1) test_encode \
+    -S 0 -b 0 -H 1080p --bitrate 1000000 --idr 1 -M 1 -N 150 -e \
+    -S 1 -b 1 -H 720p --bitrate 750000 -N 30 -e \
+    -S 2 -b 2 -H 360p --bitrate 150000 -N 150 -e \
+    -S 3 -b 2 -H 360p --bitrate 10000 -N 60 --frame-factor 1/30 -e \
+    -S 4 -b 3 -H 2560x1440 --bitrate 4000000 --idr 1 -M 1 -N 300 -e \
+    -S 5 -b 4 -H 720p --bitrate 1000000 -N 48 --frame-factor 4/5 -e \
+    -S 6 -b 5 -H 360p --bitrate 200000 -N 150 --frame-factor 1/2 -e \
+    -S 7 -b 5 -H 360p --bitrate 10000 -N 60 --frame-factor 1/60 -e
+
+   test_encode  -S 0 -b 0 -H 1080p --bitrate 1000000 --idr 1 -M 1 -N 150 -e  -S 1 -b 1 -H 720p --bitrate 750000 -N 30 -e  -S 2 -b 2 -H 360p --bitrate 150000 -N 150 -e  -S 3 -b 2 -H 360p --bitrate 10000 -N 60 --frame-factor 1/30 -e  -S 4 -b 3 -H 2560x1440 --bitrate 4000000 --idr 1 -M 1 -N 300 -e  -S 5 -b 4 -H 720p --bitrate 1000000 -N 48 --frame-factor 4/5 -e -S 6 -b 5 -H 360p --bitrate 200000 -N 150 --frame-factor 1/2 -e -S 7 -b 5 -H 360p --bitrate 10000 -N 60 --frame-factor 1/60 -e
+
+   // stop 8 streams
+   14.6.2) test_encode -A -s -B -s -C -s -D -s -E -s -S 5 -s -S 6 -s -S 7 -s
+
+   // set encoding parameters by test_encode (streaming)
+   14.6.3) test_encode \
+    -S 0 -b 0 -H 1080p --bitrate 1000000 --idr 1 -M 1 -N 150 -e \
+    -S 1 -b 1 -h 720p --bitrate 800000 -N 30 -e \
+    -S 2 -b 2 -h 360p --bitrate 400000 -N 30 -e \
+    -S 3 -b 2 -H 360p --bitrate 10000 -N 60 --frame-factor 1/30 -e \
+    -S 4 -b 3 -H 2560x1440 --bitrate 4000000 --idr 1 -M 1 -N 300 -e \
+    -S 5 -b 4 -h 720p --bitrate 800000 -N 40 --frame-factor 2/3 -e \
+    -S 6 -b 5 -h 360p --bitrate 400000 -N 40 --frame-factor 2/3 -e \
+    -S 7 -b 5 -H 360p --bitrate 10000 -N 60 --frame-factor 1/60 -e
+
+    test_encode -S 0 -b 0 -H 1080p --bitrate 1000000 --idr 1 -M 1 -N 150 -e -S 1 -b 1 -h 720p --bitrate 800000 -N 30 -e -S 2 -b 2 -h 360p --bitrate 400000 -N 30 -e -S 3 -b 2 -H 360p --bitrate 10000 -N 60 --frame-factor 1/30 -e -S 4 -b 3 -H 2560x1440 --bitrate 4000000 --idr 1 -M 1 -N 300 -e -S 5 -b 4 -h 720p --bitrate 800000 -N 40 --frame-factor 2/3 -e -S 6 -b 5 -h 360p --bitrate 400000 -N 40 --frame-factor 2/3 -e -S 7 -b 5 -H 360p --bitrate 10000 -N 60 --frame-factor 1/60 -e
+
+
+14) mimic dual vin scenarios (12 streams)
+14.1) init.sh --imx274_mipi
+14.2) test_aaa_service -a &
+//for cv25, add  --check-disable-all 1
+14.3) test_encode --resource-cfg dualvin_12_streams.lua --enc-mode 0 --enc-dummy-latency 2 --check-disable-all 1
+14.4)
+
+test_encode -S 0 -s -S 1 -s -S 2 -s -S 3 -s -S 4 -s -S 5 -s -S 6 -s -S 7 -s -S 8 -s -S 9 -s -S 10 -s -S 11 -s
+
+pass:
+test_encode -S 0 -b 0 -H 1080p --bitrate 1000000 -e \
+             -S 1 -b 0 -H 1080p -e \
+             -S 2 -b 1 -H 720p -e \
+             -S 3 -b 1 -h 720p -e \
+             -S 4 -b 2 -H 360p -e \
+             -S 5 -b 2 -H 360p -e \
+             -S 6 -b 3 -H 2560x1440 -e \
+             -S 7 -b 3 -H 2560x1440 -e \
+             -S 8 -b 4 -H 720p -e \
+             -S 9 -b 4 -h 720p -e \
+             -S 10 -b 5 -H 360p -e \
+             -S 11 -b 5 -H 360p -e
+
+issue:
+test_encode -S 0 -b 0 -H 1080p --abs-br 1 --bitrate 1000000 -N 150 -e \
+             -S 1 -b 0 -H 1080p --trigger-frame 1 -N 1 -e \
+             -S 2 -b 1 -H 720p --abs-br 1 --bitrate 750000 -N 30 -e \
+             -S 3 -b 1 -h 720p --abs-br 1 --bitrate 800000 -N 30 -e \
+             -S 4 -b 2 -H 360p --abs-br 1 --bitrate 150000 -N 150 -e \
+             -S 5 -b 2 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/30 -e \
+             -S 6 -b 3 -H 2560x1440 --abs-br 1 --bitrate 4000000 -N 300 -e \
+             -S 7 -b 3 -H 2560x1440 --trigger-frame 1 -N 1 -e \
+             -S 8 -b 4 -H 720p --abs-br 1 --bitrate 1000000 -N 48 --frame-factor 4/5 -e \
+             -S 9 -b 4 -h 720p --abs-br 1 --bitrate 800000 -N 40 --frame-factor 2/3 -e \
+             -S 10 -b 5 -H 360p --abs-br 1 --bitrate 200000 -N 150 --frame-factor 1/2 -e \
+             -S 11 -b 5 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/60 -e
+
+
+
+
+test_encode --resource-cfg /root/dualvin_12_1080_streams.lua --enc-mode 0 --enc-dummy-latency 2 --check-disable-all 1
+
+test_encode -S 0 -b 0 -H 1080p -e \
+             -S 1 -b 0 -H 1080p -e \
+             -S 2 -b 1 -H 720p -e \
+             -S 3 -b 1 -h 720p -e \
+             -S 4 -b 2 -H 360p -e \
+             -S 5 -b 2 -H 360p -e \
+             -S 6 -b 3 -H 1080p -e \
+             -S 7 -b 3 -H 1080p -e \
+             -S 8 -b 4 -H 720p -e \
+             -S 9 -b 4 -h 720p -e \
+             -S 10 -b 5 -H 360p -e \
+             -S 11 -b 5 -H 360p -e \
+             --check-disable-all 1
+
+
+test_encode -S 0 -b 0 -H 1080p --abs-br 1 --bitrate 1000000 -N 150 -e \
+             -S 1 -b 0 -H 1080p --trigger-frame 1 -N 1 -e \
+             -S 2 -b 1 -H 720p --abs-br 1 --bitrate 750000 -N 30 -e \
+             -S 3 -b 1 -h 720p --abs-br 1 --bitrate 800000 -N 30 -e \
+             -S 4 -b 2 -H 360p --abs-br 1 --bitrate 150000 -N 150 -e \
+             -S 5 -b 2 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/30 -e \
+             -S 6 -b 3 -H 1080p --abs-br 1 --bitrate 4000000 -N 300 -e \
+             -S 7 -b 3 -H 1080p --trigger-frame 1 -N 1 -e \
+             -S 8 -b 4 -H 720p --abs-br 1 --bitrate 1000000 -N 48 --frame-factor 4/5 -e \
+             -S 9 -b 4 -h 720p --abs-br 1 --bitrate 800000 -N 40 --frame-factor 2/3 -e \
+             -S 10 -b 5 -H 360p --abs-br 1 --bitrate 200000 -N 150 --frame-factor 1/2 -e \
+             -S 11 -b 5 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/60 -e \
+             --check-disable-all 1
+
+test_encode -S 0 -b 0 -H 1080p --abs-br 1 --bitrate 100000 -N 150 -e \
+             -S 1 -b 0 -H 1080p --trigger-frame 1 -N 1 -e \
+             -S 2 -b 1 -H 720p --abs-br 1 --bitrate 75000 -N 30 -e \
+             -S 3 -b 1 -h 720p --abs-br 1 --bitrate 80000 -N 30 -e \
+             -S 4 -b 2 -H 360p --abs-br 1 --bitrate 150000 -N 150 -e \
+             -S 5 -b 2 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/30 -e \
+             -S 6 -b 3 -H 1080p --abs-br 1 --bitrate 400000 -N 300 -e \
+             -S 7 -b 3 -H 1080p --trigger-frame 1 -N 1 -e \
+             -S 8 -b 4 -H 720p --abs-br 1 --bitrate 100000 -N 48 --frame-factor 4/5 -e \
+             -S 9 -b 4 -h 720p --abs-br 1 --bitrate 80000 -N 40 --frame-factor 2/3 -e \
+             -S 10 -b 5 -H 360p --abs-br 1 --bitrate 20000 -N 150 --frame-factor 1/2 -e \
+             -S 11 -b 5 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/60 -e \
+             --check-disable-all 1
+
+
+gst-launch-1.0 -v -e amba_venccap name=venc ! amba_vencdemux name=dm heic-capture-id=1,7 filename-base=/tmp/heic_0_%06d.heic dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream8 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream9 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 dm.stream10 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 dm.stream11 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+
+pipeline_create p1 amba_venccap name=venc ! amba_vencdemux name=dm heic-capture-id=1,7 filename-base=/tmp/heic_0_%06d.heic dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream8 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream9 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 dm.stream10 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 dm.stream11 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+
+// without queue
+gst-launch-1.0 -v -e amba_venccap name=venc ! amba_vencdemux name=dm heic-capture-id=1,7 filename-base=/tmp/heic_0_%06d.heic dm.stream0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream2 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 dm.stream4 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 dm.stream5 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 dm.stream6 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream8 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream9 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 dm.stream10 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 dm.stream11 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+
+
+
+
+
+
+
+//without test_encode, on gstd
+14.5)
+gstd
+gst-client (on another console)
+
+issue:
+pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,abs-br:1,bitrate:1000000,N:150,start:1,stream_id:1,stop:1,b:0,type:h265,resolution:0.0.1920.1080,trigger_frame:1,N:1,start:1,stream_id:2,stop:1,b:1,type:h265,resolution:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,stream_id:3,stop:1,b:1,type:h264,resolution:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,stream_id:4,stop:1,b:2,type:h265,resolution:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,stream_id:5,stop:1,b:2,type:h265,resolution:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:6,stop:1,b:3,type:h265,resolution:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:7,stop:1,b:3,type:h265,resolution:0.0.2560.1440,trigger_frame:1,N:1,start:1,stream_id:8,stop:1,b:4,type:h265,resolution:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:9,stop:1,b:4,type:h264,resolution:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:10,stop:1,b:5,type:h265,resolution:0.0.640.360,abs-br:1,bitrate:200000,N:150,frame_factor:1/2,start:1,stream_id:11,stop:1,b:5,type:h265,resolution:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm filename-base=/tmp/heic_0_%06d.heic dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream2 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 dm.stream4 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 dm.stream5 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 dm.stream6 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream8 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream9 ! queue ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 dm.stream10 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 dm.stream11 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+pipeline_play p1
+
+element_set p1 dm heic-capture-id 1
+
+element_set p1 venc enc stream_id:1,trigger_frame_num:1
+
+event_eos p1
+pipeline_stop p1
+pipeline_delete p1
+
+

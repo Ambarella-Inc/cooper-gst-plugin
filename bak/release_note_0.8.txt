@@ -1,0 +1,412 @@
+Ambarella gst plugin and modified nnstreamer plugin release note
+
+Version 0.1 (2022-06-17): basic multimedia elements are added, record scenario are ready, RTSP streaming is not tested (need gst rtsp server), decode scenario have some issues. (see 7. Known issues)
+ element list:
+  amba_camsrc: Amba Camera Source, output YUV frames
+  amba_heicfilesink: Ambarella HEIC File Sink
+  amba_hwvdec: amba hw video decoder
+  amba_hwvdecsrc: Amba HW decode Source, output YUV frames
+  amba_venccap: Amba Video Encoder, capture
+  amba_vencdemux: Amba Video Encoder, demux
+  amba_vsink: Amba Video Sink
+  malsasrc: Audio source (ALSA)
+
+1) Compile the plugin:
+ 1.1) extract the package (tar jxvf ambarella_gst_2022_06_17_v0.1.tar.bz2), copy it to $(SDK)/ambarella/, the plugin soure code path: $(SDK)/ambarella/mw/amba_gst_plugins/
+ 1.2) cd $(SDK)/ambarella/boards/cv22_walnut
+ 1.3) source ../../build/env/aarch64-linaro-gcc.env
+ 1.4) make sync_build_mkcfg
+ 1.5) make cv22_ipcam_config
+ 1.6) make defconfig_public_linux
+ 1.7) select ambarella gstreamer plugin in menuconfig
+    make menuconfig ->
+      [*] Build Ambarella Middleware Related  --->
+        [*]   Build Ambarella GStreamer Plugin
+ 1.8) make -j16
+Above will compile whole SDK, with ambarella gst plugin. if user only want to compile the plugin, can type
+ 1.9) make libgstamba.so
+
+The compiled plugin can be found at "$(SDK)/ambarella/out/cv22_walnut/mw/amba_gst_plugins/src/libgstamba.so" or "$(SDK)/ambarella/out/cv22_walnut/fakeroot/usr/lib/gstreamer-1.0/libgstamba.so"
+
+The plugin at board's location: "/usr/lib/gstreamer-1.0/libgstamba.so"
+
+
+2) Check the plugin and element
+ 2.1) gst-inspect-1.0 amba
+ 2.2) gst-inspect-1.0 amba_xxx
+ 2.3) gst-inspect-1.0 malsasrc
+
+
+Below are example gst command lines
+
+3) Record scenario (six streams), please copy the correct lua files to board (in this case, the lua file is /root/dualvin_sixstreams.lua)
+    For lua files: user can find the proper lua files under /usr/local/bin/scripts/
+    And the package include two typical lua files: $(SDK)/ambarella/mw/amba_gst_plugins/additional/lua_scripts
+
+ 3.1) init.sh --imx274_mipi
+ 3.2) test_aaa_service -a &
+ 3.3) test_encode --hdmi 1080p --resource-cfg /root/dualvin_sixstreams.lua
+
+ // start six streams encoding
+ 3.4) test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+
+ 3.5) gst-launch-1.0 -v -e malsasrc ! queue ! opusenc ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h265_opus_0.mp4 -e amba_venccap ! amba_vencdemux heic-mode=1 heic-period=10 heic-dump-local=1 filename-base=amba%06d.heic name=d d.stream0 ! queue ! h265parse ! mux0. t.src_1 ! mp4mux name=mux1 ! filesink location=h265_opus_1.mp4 d.stream1 ! queue ! h265parse ! mux1. t.src_2 ! mp4mux name=mux2 ! filesink location=h265_opus_2.mp4 d.stream2 ! queue ! h265parse ! mux2. t.src_3 ! mp4mux name=mux3 ! filesink location=h265_opus_3.mp4 d.stream3 ! queue ! h265parse ! mux3. t.src_4 ! mp4mux name=mux4 ! filesink location=h265_opus_4.mp4 d.stream4 ! queue ! h264parse ! mux4. t.src_5 ! mp4mux name=mux5 ! filesink location=h265_opus_5.mp4 d.stream5 ! queue ! h264parse ! mux5.
+
+ // stop six streams encoding
+ 3.6) test_encode -A -s -B -s -C -s -D -s -E -s -S 5 -s
+
+4) Record scenario (one or two streams, h264, opus)
+ 4.1) init.sh --imx274_mipi
+ 4.2) test_aaa_service -a &
+ 4.3) test_encode --hdmi 1080p --resource-cfg /root/dualvin.lua
+
+ // start h264 encoding
+ 4.4) test_encode -A -h 1080p -b 0 -e -B -h 1080p -b 1 -e
+
+ // single channel for h264 (h264 -> mp4)
+ 4.5) gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! h264parse ! mp4mux ! filesink location=h264.mp4
+
+ // two channels for h264 (h264 -> mp4)
+ 4.6) gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=vencdemux vencdemux.stream0 ! queue ! h264parse ! mp4mux ! filesink location=h264_0.mp4 vencdemux.stream1 ! queue ! h264parse ! mp4mux ! filesink location=h264_1.mp4
+
+ // single channel for h264 + opus (h264 + opus -> mp4)
+ 4.7) gst-launch-1.0 -v -e malsasrc ! queue ! opusenc ! mp4mux name=mux ! filesink location=h264_opus.mp4 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h264parse ! mux.
+
+ // two channels for h264 + opus (h264 + opus -> mp4)
+ 4.8) gst-launch-1.0 -v -e malsasrc ! queue ! opusenc ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h264_opus_0.mp4 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h264parse ! mux0. t.src_1 ! mp4mux name=mux1 ! filesink location=h264_opus_1.mp4 d.stream1 ! queue ! h264parse ! mux1.
+
+ // stop encoding
+ 4.9) test_encode -A -s -B -s
+
+
+5) Record scenario (one or two streams, h265, opus)
+ 5.1) init.sh --imx274_mipi
+ 5.2) test_aaa_service -a &
+ 5.3) test_encode --hdmi 1080p --resource-cfg /root/dualvin.lua
+
+ // start h265 encoding
+ 5.4) test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e
+
+ // single channel for h265 (h265 -> mp4)
+ 5.5) gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=h265.mp4
+
+ // two channels for h265 (h265 -> mp4)
+ 5.6) gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=vencdemux vencdemux.stream0 ! queue ! h265parse ! mp4mux ! filesink location=h265_0.mp4 vencdemux.stream1 ! queue ! h265parse ! mp4mux ! filesink location=h265_1.mp4
+
+ // single channel for h265 + opus (h265 + opus -> mp4)
+ 5.7 gst-launch-1.0 -v -e malsasrc ! queue ! opusenc ! mp4mux name=mux ! filesink location=h265_opus.mp4 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! mux.
+
+ // two channels for h265 + opus (h265 + opus -> mp4)
+ 5.8 gst-launch-1.0 -v -e malsasrc ! queue ! opusenc ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h265_opus_0.mp4 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! mux0. t.src_1 ! mp4mux name=mux1 ! filesink location=h265_opus_1.mp4 d.stream1 ! queue ! h265parse ! mux1.
+
+ // single channel h265 -> mp4 + heic
+ 5.9 gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux heic-mode=1 heic-period=10 heic-dump-local=1 filename-base=/tmp/amba%06d.heic name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=h265.mp4
+
+ // stop encoding
+ 5.10) test_encode -A -s -B -s
+
+6) Playback scenario
+ 6.1) init.sh --imx274_mipi
+ 6.2) test_aaa_service -a &
+ 6.3) test_vout --hdmi 1080p
+
+ // playback h264 + opus (mp4)
+ 6.4) gst-launch-1.0 filesrc location=/root/h264_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink
+
+ // playback h265 + opus (mp4)
+ 6.5) gst-launch-1.0 filesrc location=/root/h265_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink demuxer. ! queue ! h265parse ! amba_hwvdec ! amba_vsink
+
+ // let dsp back to idle mode
+ 6.6) test_encode --idle --nopreview
+
+
+7) Known issues
+ 7.1) playback scenario is not fully tested, the audio path is OK, video path's connection with qtdemux has problem.
+ 7.2) amba_hwvdec, amba_camsrc, amba_hwvdecsrc, amba_heicfilesink is under develop stage, there might be issues.
+ 7.3) record scenario's RTSP streaming is not tested, it may need rtsp server in gst.
+
+
+
+
+Version 0.5 (2022-07-26): first machine learning version, nnstreamer and ml_inference in amba plugin, for next sync up. (see 13. Known issues)
+ element list in amba plugin:
+  amba_camsrc: Amba Camera Source, output YUV frames
+  amba_heicfilesink: Ambarella HEIC File Sink
+  amba_hwvdec: amba hw video decoder
+  amba_hwvdecsrc: Amba HW decode Source, output YUV frames
+  amba_venccap: Amba Video Encoder, capture
+  amba_vencdemux: Amba Video Encoder, demux
+  amba_vsink: Amba Video Sink
+  malsasrc: Audio source (ALSA)
+  mlinference: Amba Machine Learning Inference
+
+ element list in nnstreamer (based on lts-2.0.1)
+  tensor_aggregator: TensorAggregator
+  tensor_converter: TensorConverter
+  tensor_crop: TensorCrop
+  tensor_decoder: TensorDecoder
+  tensor_demux: TensorDemux
+  tensor_filter: TensorFilter
+  tensor_if: TensorIf
+  tensor_merge: TensorMerge
+  tensor_mux: TensorMux
+  tensor_query_client: TensorQueryClient
+  tensor_query_serversink: TensorQueryServerSink
+  tensor_query_serversrc: TensorQueryServerSrc
+  tensor_rate: TensorRate
+  tensor_reposink: TensorRepoSink
+  tensor_reposrc: TensorRepoSrc
+  tensor_sink: TensorSink
+  tensor_sparse_dec: TensorSparseDec
+  tensor_sparse_enc: TensorSparseEnc
+  tensor_split: TensorSplit
+  tensor_src_iio: TensorSrcIIO
+  tensor_transform: TensorTransform
+
+
+8) Compile the plugin:
+ 8.1) extract the package (tar jxvf ambarella_gst_2022_07_26_v0.5.0.tar.bz2), copy it to $(SDK)/ambarella/, the amba plugin soure code path: $(SDK)/ambarella/mw/amba_gst_plugins/, the nnstreamer source code path: $(SDK)/ambarella/mw/nnstreamer/
+ 8.2) cd $(SDK)/ambarella/boards/cv22_walnut
+ 8.3) source ../../build/env/aarch64-linaro-gcc.env
+ 8.4) make sync_build_mkcfg
+ 8.5) make cv22_ipcam_config
+ 8.6) make defconfig_public_linux
+ 8.7) select ambarella gstreamer plugin and nnstreamer in menuconfig
+    make menuconfig ->
+      [*] Build Ambarella Middleware Related  --->
+        [*]   Build Ambarella GStreamer Plugin
+        [*]   Build Ambarella VPROC support
+        [*]   Build Ambarella CAVALRY support
+        [ ]     Build Ambarella GStreamer Plugin Unit Test
+        [*]   Build Ambarella Modified NNStreamer (GStreamer Plugin)
+ 8.8) make -j16
+Above will compile whole SDK, with ambarella gst plugin. if user only want to compile the plugin, can type
+ 8.9) make libgstamba.so
+ 8.10) make libgstnnstreamer.so
+
+The compiled amba plugin can be found at "$(SDK)/ambarella/out/cv22_walnut/mw/amba_gst_plugins/src/libgstamba.so" or "$(SDK)/ambarella/out/cv22_walnut/fakeroot/usr/lib/gstreamer-1.0/libgstamba.so"
+The compiled nnstreamer plugin can be found at "$(SDK)/ambarella/out/cv22_walnut/mw/nnstreamer/libgstnnstreamer.so" or "$(SDK)/ambarella/out/cv22_walnut/fakeroot/usr/lib/gstreamer-1.0/libgstnnstreamer.so"
+
+The plugins at board's location: "/usr/lib/gstreamer-1.0/libgstamba.so", "/usr/lib/gstreamer-1.0/libgstnnstreamer.so"
+
+
+9) Check the plugin and element
+ 9.1) gst-inspect-1.0 amba
+ 9.2) gst-inspect-1.0 amba_xxx
+ 9.3) gst-inspect-1.0 malsasrc
+ 9.4) gst-inspect-1.0 nnstreamer
+ 9.5) gst-inspect-1.0 tensor_xxx
+
+
+10) Fix decoding link issue, below are decoding (playback) command lines, display on HDMI (TV)
+ 10.1) init.sh --imx274_mipi
+ 10.2) test_aaa_service -a &
+ 10.3) test_vout --hdmi 1080p
+ 10.4) test_encode --idle --nopreview
+
+ // playback h264 (mp4) file
+ 10.5) gst-launch-1.0 filesrc location=/tmp/h264.mp4 ! qtdemux ! queue ! h264parse ! amba_hwvdec stream-format=h264 ! amba_vsink
+
+ // playback h264 + opus (mp4) file
+ 10.6) gst-launch-1.0 filesrc location=/tmp/h264_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink
+
+
+11) Add nnstreamer, enable Amba CVflow as its subplugin of tensor filter (under development). nnstreamer base version is lts-2.0.1
+ 11.1) init.sh --imx274_mipi
+ 11.2) modprobe cavalry
+ 11.3) cavalry_load -f /lib/firmware/cavalry.bin -r
+ 11.4) test_aaa_service -a &
+ 11.5) test_encode --hdmi 1080p --resource-cfg /root/dualvin_sixstreams.lua
+
+ // yolov5
+ 11.6) gst-launch-1.0 -e amba_camsrc ! videoscale ! videoconvert ! tensor_converter ! tensor_filter framework=amba_cvflow model=/root/onnx_yolov5s_cavalry.bin,/root/coco_class_names.txt input=1:3:416:416 output=1:21:26:128,1:21:13:64,1:21:52:224 inputtype=uint8 outputtype=uint8 inputlayout=nchw inputname=images custom=in_name:images,out_name:1017,out_name:1037,out_name:997 ! autovideosink
+
+
+12) Add machine learning element in amba plugin (under development), this ml_inference element will do pre-proc, nn inference, post-proc together.
+
+
+13) Known issues
+ 13.1) tensor filter (amba cvflow) is under development
+ 13.2) ml_inference element is under development
+ 13.3) how to handle NN cascading? extend in nnstreamer or handle in amba gst plugin element.
+
+
+
+Version 0.8 (2022-07-28): machine learning tested version, nnstreamer and ml_inference in amba plugin. (see 20. Known issues)
+ element list in amba plugin:
+  amba_camsrc: Amba Camera Source, output YUV frames
+  amba_heicfilesink: Ambarella HEIC File Sink
+  amba_hwvdec: amba hw video decoder
+  amba_hwvdecsrc: Amba HW decode Source, output YUV frames
+  amba_venccap: Amba Video Encoder, capture
+  amba_vencdemux: Amba Video Encoder, demux
+  amba_vsink: Amba Video Sink
+  malsasrc: Audio source (ALSA)
+  mlinference: Amba Machine Learning Inference
+
+ element list in nnstreamer (based on lts-2.0.1)
+  tensor_aggregator: TensorAggregator
+  tensor_converter: TensorConverter
+  tensor_crop: TensorCrop
+  tensor_decoder: TensorDecoder
+  tensor_demux: TensorDemux
+  tensor_filter: TensorFilter
+  tensor_if: TensorIf
+  tensor_merge: TensorMerge
+  tensor_mux: TensorMux
+  tensor_query_client: TensorQueryClient
+  tensor_query_serversink: TensorQueryServerSink
+  tensor_query_serversrc: TensorQueryServerSrc
+  tensor_rate: TensorRate
+  tensor_reposink: TensorRepoSink
+  tensor_reposrc: TensorRepoSrc
+  tensor_sink: TensorSink
+  tensor_sparse_dec: TensorSparseDec
+  tensor_sparse_enc: TensorSparseEnc
+  tensor_split: TensorSplit
+  tensor_src_iio: TensorSrcIIO
+  tensor_transform: TensorTransform
+
+14) Compile the plugin:
+ 14.1) extract the package (tar jxvf ambarella_gst_2022_07_28_v0.8.0.tar.bz2), copy it to $(SDK)/ambarella/, the amba plugin soure code path: $(SDK)/ambarella/mw/amba_gst_plugins/, the nnstreamer source code path: $(SDK)/ambarella/mw/nnstreamer/
+ 14.2) cd $(SDK)/ambarella/boards/cv22_walnut
+ 14.3) source ../../build/env/aarch64-linaro-gcc.env
+ 14.4) make sync_build_mkcfg
+ 14.5) make cv22_ipcam_config
+ 14.6) make defconfig_public_linux
+ 14.7) select ambarella gstreamer plugin and nnstreamer in menuconfig
+    make menuconfig ->
+      [*] Build Ambarella Middleware Related  --->
+        [*]   Build Ambarella GStreamer Plugin
+        [*]   Build Ambarella VPROC support
+        [*]   Build Ambarella CAVALRY support
+        [ ]     Build Ambarella GStreamer Plugin Unit Test
+        [*]   Build Ambarella Modified NNStreamer (GStreamer Plugin)
+ 14.8) make -j16
+Above will compile whole SDK, with ambarella gst plugin. if user only want to compile the plugin, can type
+ 14.9) make libgstamba.so
+ 14.10) make libgstnnstreamer.so
+
+The compiled amba plugin can be found at "$(SDK)/ambarella/out/cv22_walnut/mw/amba_gst_plugins/src/libgstamba.so" or "$(SDK)/ambarella/out/cv22_walnut/fakeroot/usr/lib/gstreamer-1.0/libgstamba.so"
+The compiled nnstreamer plugin can be found at "$(SDK)/ambarella/out/cv22_walnut/mw/nnstreamer/libgstnnstreamer.so" or "$(SDK)/ambarella/out/cv22_walnut/fakeroot/usr/lib/gstreamer-1.0/libgstnnstreamer.so"
+
+The plugins at board's location: "/usr/lib/gstreamer-1.0/libgstamba.so", "/usr/lib/gstreamer-1.0/libgstnnstreamer.so"
+
+Preparing for test on EVK board:
+ a) The test needed models is in models_for_test.7z, extract it and copy it to /tmp/ on board.
+ b) Please copy the correct lua files to board (in this case, the lua file is /root/dualvin_sixstreams.lua)
+    For lua files: user can find the proper lua files under /usr/local/bin/scripts/
+    And the package include two typical lua files: $(SDK)/ambarella/mw/amba_gst_plugins/additional/lua_scripts
+
+15) Check the plugin and element
+ 15.1) gst-inspect-1.0 amba
+ 15.2) gst-inspect-1.0 amba_xxx
+ 15.3) gst-inspect-1.0 malsasrc
+ 15.4) gst-inspect-1.0 nnstreamer
+ 15.5) gst-inspect-1.0 tensor_xxx
+
+16) For recoding scenario, please refer to 3) ~ 5).
+
+17) For playback scenario, please refer to 6).
+
+18) Add machine learning and overlay elements in amba plugin, this ml_inference element will do pre-proc, nn inference, post-proc together.
+ 18.1) init.sh --imx274_mipi
+ 18.2) test_aaa_service -a &
+ 18.3) test_encode --hdmi 1080p --resource-cfg /root/dualvin_sixstreams.lua
+ 18.4) modprobe cavalry
+ 18.5) cavalry_load -f /lib/firmware/cavalry.bin -r
+ 18.6) test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+ 18.7) rtsp_server&
+
+ // yolov5, with post-processing, drawing bboxes on overlay
+ 18.8) gst-launch-1.0 amba_camsrc buf-id = 0 ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 \
+label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin \
+type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 ! queue ! amba_venc_overlay stream_id = 0 alpha = 0 \
+font = /tmp/arial.ttf clut_start = 22 clut_end = 70 color_number = 300 score_lmt = 0.25
+//tiny yolov3, with post-processing, drawing bboxes on overlay
+ 18.9) gst-launch-1.0 amba_camsrc buf-id = 0 ! mlinference in_name = data out_name = layer115-conv out_name = layer125-conv \
+label = /tmp/nn/in/live_voc_labels.txt model = /tmp/nn/model/yolov3_fastest_xl_cavalry.bin \
+type = yolov3x conf_threshold = 0.8 nms = 0.3 top_k = 100 ! queue ! amba_venc_overlay stream_id = 0 alpha = 0 \
+font = /tmp/arial.ttf clut_start = 22 clut_end = 70 color_number = 300 score_lmt = 0.8
+
+ // efficientnet, without post-processing
+ 18.10) gst-launch-1.0 amba_camsrc buf-id = 0 ! mlinference in_name = input out_name = 672 label = /tmp/efficientnet/coco_ids.yaml model = /tmp/efficientnet/efficientnet_cavalry.bin type = efficientnet conf_threshold = 0.2 nms = 0.5 top_k = 100 ! autovideosink
+ // efficientdet_lite0, without post-processing
+ 18.11) gst-launch-1.0 amba_camsrc buf-id = 0 ! mlinference in_name = image_arrays out_name = concat_1 out_name = Sigmoid label = /tmp/efficientdet_lite0/coco_ids.yaml model = /tmp/efficientdet_lite0/cavalry_efficientdet_lite0.bin type = efficientdet_lite0 conf_threshold = 0.2 nms = 0.5 top_k = 100 ! autovideosink
+ // movenet_lightning, without post-processing
+ 18.12) gst-launch-1.0 amba_camsrc buf-id = 0 ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall label = /tmp/movenet_lightning/coco_ids.yaml model = /tmp/movenet_lightning/cavalry_movenet_lightning.bin type = movenet_lightning conf_threshold = 0.2 nms = 0.5 top_k = 100 ! autovideosink
+ // movenet_thunder, without post-processing
+ 18.13) gst-launch-1.0 amba_camsrc buf-id = 0 ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall label = /tmp/movenet_thunder/coco_ids.yaml model = /tmp/movenet_thunder/cavalry_movenet_thunder.bin type = movenet_thunder conf_threshold = 0.2 nms = 0.5 top_k = 100 ! autovideosink
+ // fast_depth, without post-processong
+ 18.14) gst-launch-1.0 amba_camsrc buf-id = 0 ! mlinference in_name = input.1 out_name = 424 label = /tmp/fast_depth/cnngen_onnx_fast_depth_info.yaml model = /tmp/fast_depth/onnx_fast_depth_cavalry.bin type = onnx_fast_depth conf_threshold = 0.2 nms = 0.5 top_k = 100 ! autovideosink
+
+19) Add machine learning element in amba plugin, this ml_inference element will do pre-proc, nn inference, post-proc together.
+ 19.1) init.sh --imx274_mipi
+ 19.2) test_aaa_service -a &
+ 19.3) test_encode --hdmi 1080p --resource-cfg /root/dualvin_sixstreams.lua
+ 19.4) modprobe cavalry
+ 19.5) cavalry_load -f /lib/firmware/cavalry.bin -r
+
+ // yolov5
+ //machine learning inference with post-process
+ 19.6) gst-launch-1.0 -e amba_camsrc buf-id=0 ! videoscale ! video/x-raw,width=416,height=416,format=NV12 ! videoconvert ! video/x-raw,format=RGBP \
+! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,\
+post_proc:1,label:/tmp/nn/in/coco_class_names.txt,type:yolov5s,f:0.25,nms:0.45,top_k:100 ! tensor_sink
+
+ //machine learning inference without post-process
+ 19.7) gst-launch-1.0 -e amba_camsrc buf-id=0 ! videoscale ! video/x-raw,width=416,height=416,format=NV12 ! videoconvert ! video/x-raw,format=RGBP ! queue ! \
+ tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+ custom=in_name:images,out_name:1037+1017+997 ! tensor_sink
+
+ //not ready: link to tensor_decoder, killed with "out of memory" issue.
+ 19.8) gst-launch-1.0 -e amba_camsrc buf-id=0 ! videoscale ! video/x-raw,width=416,height=416,format=NV12 ! videoconvert ! video/x-raw,format=RGBP ! queue ! \
+ tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+ custom=in_name:images,out_name:1037+1017+997 ! tensor_decoder mode=bounding_boxes option1=amba_yolov5 \
+ option2=/tmp/nn/in/coco_class_names.txt option4=1280:720 option5=416:416 ! amba_vsink
+
+20) Add encode related ctrl in amba_venccap element
+ 20.1) init.sh --imx274_mipi
+ 20.2) test_aaa_service -a &
+ 20.3) test_encode --resource-cfg dualvin_12_streams.lua --enc-mode 0
+
+ //encode setting at creation stage. Alternatively, choose "test_encode" or "amba_venccap"
+ 20.4)
+ //test_encode
+ test_encode  -S 0 -b 0 -H 1080p --frame-factor 1/15 --idr 1 -M 1 -N 30 -e \
+-S 1 -b 0 -H 1080p --bitrate 1000000 -N 150 --force-idr -e \
+-S 2 -b 1 -H 720p --bc vbr --vbr-bitrate 10000~1000000 -N 30 -e \
+-S 3 -b 1 -h 720p --bitrate 800000 -N 30 -e \
+-S 4 -b 2 -H 360p --bitrate 150000 -N 150 -e \
+-S 5 -b 2 -H 360p --bitrate 10000 -N 30 --frame-factor 1/15 -e \
+-S 6 -b 3 -H 2560x1440 --frame-factor 1/30 -e \
+-S 7 -b 3 -H 2560x1440 --bitrate 4000000 -N 300 -e \
+-S 8 -b 4 -H 720p --bitrate 1000000 -N 48 --frame-factor 4/5 -e \
+-S 9 -b 4 -h 720p --bitrate 800000 -N 40 --frame-factor 2/3 -e \
+-S 10 -b 5 -H 360p --bitrate 200000 -N 150 --frame-factor 1/2 -e \
+-S 11 -b 5 -H 360p --bitrate 10000 -N 30 --frame-factor 1/30 -e
+ //amba_venccap
+gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,b:0,type:h265,resolution:0.0.1920.1080,frame_factor:1/15,idr_interval:1,M:1,N:30,start:1,\
+stream_id:1,stop:1,b:0,type:h265,resolution:0.0.1920.1080,bitrate:1000000,N:150,force_idr:1,start:1,\
+stream_id:2,stop:1,b:1,type:h265,resolution:0.0.1280.720,bc:vbr,vbr_bitrate:10000~1000000,N:30,start:1,\
+stream_id:3,stop:1,b:1,type:h264,resolution:0.0.1280.720,bitrate:800000,N:30,start:1,\
+stream_id:4,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:150000,N:150,start:1,\
+stream_id:5,stop:1,b:2,type:h265,resolution:0.0.640.360,bitrate:10000,N:30,frame_factor:1/15,start:1 \
+! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265.mp4
+
+ //encode setting in running time
+ 20.5)
+
+  pipeline_create p1 amba_venccap name=venc ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265.mp4
+  pipeline_play p1
+  element_set p1 venc enc stream_id:0,bitrate:1000000
+  element_set p1 venc enc stream_id:0,bc:vbr
+  pipeline_stop p1
+  pipeline_delete p1
+
+
+
+21) Known issues
+ 21.1) amba_camsrc, amba_vsink, tensor filter (amba cvflow) together with tensor decoder (boundingbox), will cause "out of memory" error.
+ 21.2) for efficientnet, efficientdet_lite0, movenet_lightning, movenet_thunder, fast_depth, their post-processing is not ready, in amba ml_inference element.
+ 21.3) how to handle NN cascading in amba gst plugin element is not ready.
+

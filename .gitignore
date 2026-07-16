@@ -1,0 +1,13 @@
+*.o
+*.obj
+
+# out
+out
+
+# tar ball
+*.bz2
+*.gz
+*.xz
+*.zip
+*.rar
+

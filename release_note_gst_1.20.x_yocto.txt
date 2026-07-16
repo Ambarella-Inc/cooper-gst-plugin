@@ -1,0 +1,2087 @@
+1) Overview
+
+The release includes two parts: nnstreamer plugin (modified), Ambarella gstreamer plugin.
+The gstreamer part and gstd use yocto version.
+
+gstreamer is an open source project, its focus is multimedia processing, its website is https://gstreamer.freedesktop.org/.
+gstreamer is an open architecture, it provides a core framework named gstreamer-core, and also along with plenty of elements
+ for multimedia processing, like gstreamer-plugin-base, gstreamer-plugin-good, gstreamer-plugin-bad, gstreamer-libav
+ and gstreamer-rtsp-server.
+ Writing plugin/element is an easy and typical way to extend gstreamer capability.
+Ambarella Flexible Linux SDK support gstreamer 1.20.4 by yocto.
+
+nnstreamer is an open source project, its focus is machine learning in gstreamer, its website is https://nnstreamer.ai/.
+nnstreamer is gstreamer plugin, which includes a group of element for machine learning processing, especially for neural network
+ inference. Ambarella's modification for nnstreamer is adding Ambarella neural network accelerator support. In Ambarella Flexible
+ Linux SDK, the modified nnstreamer is based on nnstreamer version lts-2.0.1. Its location in SDK is ambarella/packages/mnnstreamer.
+
+Ambarella gstreamer plugin inncludes elements for multimedia and machine learning related processing on Ambarella platform.
+ Current version is 1.1. Its location in SDK is ambarella/packages/amba_gst_plugins.
+
+gstreamer daemon, also called gstd, is a gstreamer framework for controlling audio and video streaming using an interProcess communication
+ protocol. Its website is https://developer.ridgerun.com/wiki/index.php?title=GStreamer_Daemon.
+Ambarella Flexible Linux SDK support gstreamer daemon by yocto.
+
+
+Element list in Ambarella plugin:
+  amba_camsrc: Amba Camera Source, output YUV frames
+  amba_heicfilesink: Ambarella HEIC File Sink
+  amba_hwvdec: amba hw video decoder
+  amba_hwvdecsrc: Amba HW decode Source, output YUV frames
+  amba_venccap: Amba Video Encoder, capture
+  amba_vencdemux: Amba Video Encoder, demux
+  amba_vsink: Amba Video Sink
+  malsasrc: Audio source (ALSA)
+  mlinference: Amba Machine Learning Inference
+  amba_venc_overlay_bbox: Amba Venc Overlay for bounding boxes
+  amba_overlay_src: Amba Overlay source, output clut and data for overlay
+  amba_venc_overlay: Amba Venc Overlay, draw on overlay
+
+Element list in nnstreamer plugin (based on lts-2.0.1)
+  tensor_aggregator: TensorAggregator
+  tensor_converter: TensorConverter
+  tensor_crop: TensorCrop
+  tensor_decoder: TensorDecoder
+  tensor_demux: TensorDemux
+  tensor_filter: TensorFilter
+  tensor_if: TensorIf
+  tensor_merge: TensorMerge
+  tensor_mux: TensorMux
+  tensor_query_client: TensorQueryClient
+  tensor_query_serversink: TensorQueryServerSink
+  tensor_query_serversrc: TensorQueryServerSrc
+  tensor_rate: TensorRate
+  tensor_reposink: TensorRepoSink
+  tensor_reposrc: TensorRepoSrc
+  tensor_sink: TensorSink
+  tensor_sparse_dec: TensorSparseDec
+  tensor_sparse_enc: TensorSparseEnc
+  tensor_split: TensorSplit
+  tensor_src_iio: TensorSrcIIO
+  tensor_transform: TensorTransform
+
+Element list in gstinterpipe plugin (based on v1.1.8)
+  interpipesink: Sink for internal pipeline buffers communication
+  interpipesrc: Source for internal pipeline buffers communication
+
+2) Compilation:
+ 2.1) cd $(SDK)/ambarella
+ 2.2)
+  // cv22
+  source build/env/yocto-build.env cv22_walnut
+  // cv52
+  source build/env/yocto-build.env cv52_crco
+  // cv5
+  source build/env/yocto-build.env cv5_timn
+  // cv72
+  source build/env/yocto-build.env cv72_gage
+  // cv75
+  source build/env/yocto-build.env cv75_ptpd
+  // n1
+  source build/env/yocto-build.env n1_cooper_max
+ 2.3)
+  // cv2x
+  make ipcam_gst_config
+  // cv52
+  make ipcam_lp4_gst_config
+  // cv5
+  make ipcam_gst_config
+  // cv72
+  make ipcam_lp5_gst_config
+  // cv75
+  make ipcam_lp4_gst_config
+  // n1
+  make ipcam_gst_config
+ 2.4) select ambarella gstreamer plugin and nnstreamer in menuconfig
+    make menuconfig
+      -> meta-ambalib
+        -> recipes-ambagstreamer
+          -> libgstamba
+            ->Build Ambarella GStreamer Plugin
+          -> libgstnnstreamer
+
+        -> recipes-video
+          -> liblwmedia (meta-ambalib/recipes-video/liblwmedia)
+            -> Build lw_media unit test
+ // discard
+ 2.5) make boot_defconfig
+ 2.6) make -j16
+
+
+3) Preparing for test on EVK board:
+ a) The test needed models is in models_for_test.7z, extract it and copy it to /tmp/ on board.
+ b) Please copy the correct lua files to board (in this case, the lua file is /home/root/dualvin_sixstreams.lua)
+    For lua files: user can find the proper lua files under /usr/local/bin/scripts/
+    And the package include some typical lua files: $(SDK)/ambarella/packages/amba_gst_plugins/additional/lua_scripts
+
+4) Check the plugin and element, gstd and gst-client
+ 4.1) gst-inspect-1.0 amba --no-colors
+ 4.2) gst-inspect-1.0 amba_xxx --no-colors
+ 4.3) gst-inspect-1.0 malsasrc --no-colors
+ 4.4) gst-inspect-1.0 nnstreamer --no-colors
+ 4.5) gst-inspect-1.0 tensor_xxx --no-colors
+ 4.6) gst-inspect-1.0 interpipe
+ 4.7) gstd
+ 4.8) gst-client
+
+5) Test and validation: Record scenario (six streams)
+ // for cv22/cv25
+ 5.1) init.sh --imx274_mipi
+      test_aaa_service -a &
+      test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+      // start six streams encoding
+      test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 480p -b 2 -e -D -h 480p -b 3 -e -E -H 480p -b 4 -e -S 5 -h 480p -b 5 -e
+ // for cv28
+ 5.2) init.sh --imx274_mipi
+      test_aaa_service -a &
+      modprobe lcd_r9611
+      test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+      // start six streams encoding
+      test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 480p -b 2 -e -D -h 480p -b 3 -e -E -H 480p -b 4 -e -S 5 -h 480p -b 5 -e
+ // for cv52
+ 5.3) init.sh --na; modprobe max9296 id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv52_four_vin_1080p_linear_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+      // start six streams encoding
+      test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 1080p -b 2 -e -D -h 480p -b 3 -e -E -H 480p -b 4 -e -S 5 -h 480p -b 5 -e
+ // for cv72
+ 5.4) init.sh --na; modprobe max9296 id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv72_four_vin_1080p_linear_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+      // start six streams encoding
+      test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 1080p -b 2 -e -D -h 480p -b 3 -e -E -H 480p -b 4 -e -S 5 -h 480p -b 5 -e
+ // for cv75
+ 5.5) init.sh --na; modprobe imx274_mipi vinc_id=0x40
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams.lua
+      // start six streams encoding
+      test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 480p -b 2 -e -D -h 480p -b 3 -e -E -H 480p -b 4 -e -S 5 -h 480p -b 5 -e
+
+ // go to a dir with enough storage space folder, like /tmp/
+ 5.6) cd /tmp/
+
+ // six streams video only
+ 5.7) gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux  ! filesink location=h265_0.mp4 \
+   d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=h264_1.mp4 \
+   d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=h265_2.mp4 \
+   d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=h264_3.mp4 \
+   d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=h265_4.mp4 \
+   d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=h264_5.mp4
+
+  // gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=h265_0.mp4 d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=h264_1.mp4 d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=h265_2.mp4 d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=h264_3.mp4 d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=h265_4.mp4 d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=h264_5.mp4
+
+ // six streams h265/h264 + opus
+ 5.8) gst-launch-1.0 -e alsasrc ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! opusenc ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h265_opus_0.mp4 \
+   -e amba_venccap sync=true ! amba_vencdemux heic-capture-id=0 filename-base=amba%06d.heic name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux0. \
+   t.src_1 ! mp4mux name=mux1 ! filesink location=h264_opus_1.mp4 d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux1. \
+   t.src_2 ! mp4mux name=mux2 ! filesink location=h265_opus_2.mp4 d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux2. \
+   t.src_3 ! mp4mux name=mux3 ! filesink location=h264_opus_3.mp4 d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux3. \
+   t.src_4 ! mp4mux name=mux4 ! filesink location=h265_opus_4.mp4 d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux4. \
+   t.src_5 ! mp4mux name=mux5 ! filesink location=h264_opus_5.mp4 d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux5.
+
+    //gst-launch-1.0 -e alsasrc ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! opusenc ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h265_opus_0.mp4 -e amba_venccap sync=true ! amba_vencdemux heic-capture-id=0 filename-base=amba%06d.heic name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux0. t.src_1 ! mp4mux name=mux1 ! filesink location=h264_opus_1.mp4 d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux1. t.src_2 ! mp4mux name=mux2 ! filesink location=h265_opus_2.mp4 d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux2. t.src_3 ! mp4mux name=mux3 ! filesink location=h264_opus_3.mp4 d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux3. t.src_4 ! mp4mux name=mux4 ! filesink location=h265_opus_4.mp4 d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux4. t.src_5 ! mp4mux name=mux5 ! filesink location=h264_opus_5.mp4 d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux5.
+
+ // six streams h265/h264 + aac
+ 5.9) gst-launch-1.0 -e alsasrc ! audio/x-raw,rate=48000 ! audioconvert ! avenc_aac ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h265_aac_0.mp4 \
+   -e amba_venccap sync=true ! amba_vencdemux heic-capture-id=0 filename-base=amba%06d.heic name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux0. \
+   t.src_1 ! mp4mux name=mux1 ! filesink location=h264_aac_1.mp4 d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux1. \
+   t.src_2 ! mp4mux name=mux2 ! filesink location=h265_aac_2.mp4 d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux2. \
+   t.src_3 ! mp4mux name=mux3 ! filesink location=h264_aac_3.mp4 d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux3. \
+   t.src_4 ! mp4mux name=mux4 ! filesink location=h265_aac_4.mp4 d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux4. \
+   t.src_5 ! mp4mux name=mux5 ! filesink location=h264_aac_5.mp4 d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux5.
+
+    //gst-launch-1.0 -e alsasrc ! audio/x-raw,rate=48000 ! audioconvert ! avenc_aac ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h265_aac_0.mp4 -e amba_venccap sync=true ! amba_vencdemux heic-capture-id=0 filename-base=amba%06d.heic name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux0. t.src_1 ! mp4mux name=mux1 ! filesink location=h264_aac_1.mp4 d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux1. t.src_2 ! mp4mux name=mux2 ! filesink location=h265_aac_2.mp4 d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux2. t.src_3 ! mp4mux name=mux3 ! filesink location=h264_aac_3.mp4 d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux3. t.src_4 ! mp4mux name=mux4 ! filesink location=h265_aac_4.mp4 d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux4. t.src_5 ! mp4mux name=mux5 ! filesink location=h264_aac_5.mp4 d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux5.
+
+ // stop six streams encoding
+ 5.10) test_encode -A -s -B -s -C -s -D -s -E -s -S 5 -s
+
+6) Test and validation: Record scenario (one or two streams, h264, opus or aac)
+ // for cv22/cv25
+ 6.1) init.sh --imx274_mipi
+      test_aaa_service -a &
+      test_encode --hdmi 1080p --resource-cfg /home/root/dualvin.lua
+ // for cv28
+ 6.2) init.sh --imx274_mipi
+      test_aaa_service -a &
+      modprobe lcd_r9611
+      test_encode --mipi_dsi 1080p --resource-cfg /home/root/cv28_dualvin.lua
+ // for cv52
+ 6.3) init.sh --na; modprobe max9296 id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv52_vin0_1_1080p_linear.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv72
+ 6.4) init.sh --na; modprobe max9296 id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv72_vin0_1_1080p_linear.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv75
+ 6.5) init.sh --na; modprobe imx274_mipi vinc_id=0x40;
+      modprobe lcd_r9611 voutid=0 dsi_output_mode=10;
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv75_vin0_1_1080p_linear.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout0_dsi.lua
+
+ // start h264 encoding
+ 6.6) test_encode -A -h 1080p -b 0 -e -B -h 1080p -b 1 -e
+
+ // go to a dir with enough storage space folder, like /tmp/
+ 6.7) cd /tmp/
+
+ // single channel for h264 (h264 -> mp4)
+ 6.8) gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! h264parse ! mp4mux ! filesink location=h264.mp4
+
+ // two channels for h264 (h264 -> mp4)
+ 6.9) gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=vencdemux vencdemux.stream0 ! queue ! h264parse ! mp4mux ! filesink location=h264_0.mp4 \
+    vencdemux.stream1 ! queue ! h264parse ! mp4mux ! filesink location=h264_1.mp4
+
+ // If need Audio/Video synchronization, please set "sync=true" in "amba_venccap"
+
+ // single channel for h264 + opus (h264 + opus -> mp4)
+ 6.10) gst-launch-1.0 -e alsasrc ! queue ! opusenc ! mp4mux name=mux ! filesink location=h264_opus.mp4 \
+    -e amba_venccap sync=TRUE ! amba_vencdemux name=d d.stream0 ! queue ! h264parse ! mux.
+
+ // two channels for h264 + opus (h264 + opus -> mp4)
+ 6.11) gst-launch-1.0 -e alsasrc ! queue ! opusenc ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h264_opus_0.mp4 \
+    -e amba_venccap sync=TRUE ! amba_vencdemux name=d d.stream0 ! queue ! h264parse ! mux0. \
+	t.src_1 ! mp4mux name=mux1 ! filesink location=h264_opus_1.mp4 d.stream1 ! queue ! h264parse ! mux1.
+
+ // single channel for h264 + aac (h264 + aac -> mp4)
+ 6.12) gst-launch-1.0 -e alsasrc ! audio/x-raw,rate=48000 ! audioconvert ! avenc_aac ! queue ! mp4mux name=mux ! filesink location=h264_aac.mp4 \
+    -e amba_venccap sync=TRUE ! amba_vencdemux name=d d.stream0 ! queue ! h264parse ! mux.
+
+ // two channels for h264 + aac (h264 + aac -> mp4)
+ 6.13) gst-launch-1.0 -e alsasrc ! audio/x-raw,rate=48000 ! audioconvert ! avenc_aac ! queue ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h264_aac_0.mp4 \
+    -e amba_venccap sync=TRUE ! amba_vencdemux name=d d.stream0 ! queue ! h264parse ! mux0. \
+	t.src_1 ! mp4mux name=mux1 ! filesink location=h264_aac_1.mp4 d.stream1 ! queue ! h264parse ! mux1.
+
+ // stop encoding
+ 6.14) test_encode -A -s -B -s
+
+
+7) Test and validation: Record scenario (one or two streams, h265, opus or aac)
+ // for cv22/cv25
+ 7.1) init.sh --imx274_mipi
+      test_aaa_service -a &
+      test_encode --hdmi 1080p --resource-cfg /home/root/dualvin.lua
+ // for cv28
+ 7.2) init.sh --imx274_mipi
+      test_aaa_service -a &
+      modprobe lcd_r9611
+      test_encode --mipi_dsi 1080p --resource-cfg /home/root/cv28_dualvin.lua
+ // for cv52
+ 7.3) init.sh --na; modprobe max9296 id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv52_vin0_1_1080p_linear.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv72
+ 7.4) init.sh --na; modprobe max9296 id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv72_vin0_1_1080p_linear.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv75
+ 7.5) init.sh --na; modprobe imx274_mipi vinc_id=0x40;
+      modprobe lcd_r9611 voutid=0 dsi_output_mode=10;
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv75_vin0_1_1080p_linear.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout0_dsi.lua
+
+ // start h265 encoding
+ 7.6) test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e
+
+ // go to a dir with enough storage space folder, like /tmp/
+ 7.7) cd /tmp/
+
+ // single channel for h265 (h265 -> mp4)
+ 7.8) gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=h265.mp4
+
+ // two channels for h265 (h265 -> mp4)
+ 7.9) gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=vencdemux vencdemux.stream0 ! queue ! h265parse ! mp4mux ! filesink location=h265_0.mp4 \
+    vencdemux.stream1 ! queue ! h265parse ! mp4mux ! filesink location=h265_1.mp4
+
+// If need Audio/Video synchronization, please set "sync=true" in "amba_venccap"
+
+ // single channel for h265 + opus (h265 + opus -> mp4)
+ 7.10) gst-launch-1.0 -e alsasrc ! queue ! opusenc ! mp4mux name=mux ! filesink location=h265_opus.mp4 \
+    -e amba_venccap sync=TRUE ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! mux.
+
+ // two channels for h265 + opus (h265 + opus -> mp4)
+ 7.11) gst-launch-1.0 -e alsasrc ! queue ! opusenc ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h265_opus_0.mp4 \
+    -e amba_venccap sync=TRUE ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! mux0. t.src_1 ! mp4mux name=mux1 ! filesink location=h265_opus_1.mp4 \
+    d.stream1 ! queue ! h265parse ! mux1.
+
+ // single channel for h265 + aac (h265 + aac -> mp4)
+ 7.12) gst-launch-1.0 -e alsasrc ! audio/x-raw,rate=48000 ! audioconvert ! avenc_aac ! queue ! mp4mux name=mux ! filesink location=h265_aac.mp4 \
+    -e amba_venccap sync=TRUE ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! mux.
+
+ // two channels for h265 + aac (h265 + aac -> mp4)
+ 7.13) gst-launch-1.0 -e alsasrc ! audio/x-raw,rate=48000 ! audioconvert ! avenc_aac ! queue ! tee name=t t.src_0 ! mp4mux name=mux0 ! filesink location=h265_aac_0.mp4 \
+    -e amba_venccap sync=TRUE ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! mux0. t.src_1 ! mp4mux name=mux1 ! filesink location=h265_aac_1.mp4 \
+    d.stream1 ! queue ! h265parse ! mux1.
+
+ // single channel h265 -> mp4 + heic
+ 7.14) gst-launch-1.0 -e amba_venccap ! amba_vencdemux heic-capture-id=0 filename-base=/tmp/amba%06d.heic name=dm dm.stream0 \
+    ! queue ! h265parse ! mp4mux ! filesink location=h265.mp4
+
+ // stop encoding
+ 7.15) test_encode -A -s -B -s
+
+8) Test and validation: Playback (HW decoding) scenario
+ // for cv22/cv25
+ 8.1) init.sh --imx274_mipi
+      test_aaa_service -a &
+      test_vout --hdmi 1080p
+ //for cv28, not support for mipi_dsi in amba_hwvdec now, skip section 8
+ 8.2) init.sh --imx274_mipi
+      test_aaa_service -a &
+      modprobe lcd_r9611
+      test_vout --mipi_dsi 1080p
+ // for cv52/cv72, not ready now, just skip section 8.
+ 8.3) init.sh --na
+      modprobe ambds vin_virtual_flag=1 yuv_mode=1
+      test_aaa_service -a &
+      test_encode --resource-cfg dec_1ch_1080p.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv75, not ready now, just skip section 8.
+
+ // If playback audio and video at the same time, please set "async=false" in user's sink element
+ // playback h264 + opus (mp4)
+ 8.4) gst-launch-1.0 filesrc location=h264_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink \
+    demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink async=false
+
+    // for video
+    //gst-launch-1.0 filesrc location=h264_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink
+    // for audio
+    //gst-launch-1.0 filesrc location=h264_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink
+
+ // playback h265 + opus (mp4)
+ 8.5) gst-launch-1.0 filesrc location=h265_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink demuxer. ! queue ! h265parse ! amba_hwvdec ! amba_vsink async=false
+
+ // playback h264 + aac (mp4)
+ 8.6) gst-launch-1.0 filesrc location=h264_aac.mp4 ! qtdemux name=demuxer demuxer. ! queue ! avdec_aac ! audioconvert ! autoaudiosink \
+    demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink async=false
+
+    // for video
+    //gst-launch-1.0 filesrc location=h264_aac.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink
+    // for audio
+    //gst-launch-1.0 filesrc location=h264_aac.mp4 ! qtdemux name=demuxer demuxer. ! queue ! avdec_aac ! audioconvert ! autoaudiosink
+
+ // playback h265 + aac (mp4)
+ 8.7) gst-launch-1.0 filesrc location=h265_aac.mp4 ! qtdemux name=demuxer demuxer. ! queue ! avdec_aac ! audioconvert ! autoaudiosink \
+    demuxer. ! queue ! h265parse ! amba_hwvdec ! amba_vsink async=false
+
+ // let dsp back to idle mode
+ 8.8)
+      //cv2x
+      test_encode --idle --nopreview
+      // cv5x/cv7x
+      test_encode --idle
+
+9) Test and validation: machine learning + overlay + streaming (ambarella plugin)
+ // If use overlay, please configure canvas encode dummy latency first, and enc_dummy_latency should be > 0.
+ // User also need to setup the properties of address offset (osd_offset) and size (osd_size) of overlay areas for current stream.
+ // for cv22/cv25
+ 9.1) modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --imx274_mipi
+      test_aaa_service -a &
+      test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+
+ // for cv28
+ 9.2) modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --imx274_mipi
+      test_aaa_service -a &
+      modprobe lcd_r9611
+      test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+
+ // for cv52
+ 9.3) modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg cv52_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+ // for cv72
+ 9.4)
+      modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg cv72_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+ // for cv75
+ 9.5)
+      modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --na; modprobe imx274_mipi vinc_id=0x40
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+
+ // NN model:
+ // for cv22/cv25, the test models were in the path /tmp/nn/model/cv22/
+ // for cv28, the test models were in the path /tmp/nn/model/cv28/
+ // for cv5x, the test models were in the path /tmp/nn/model/cv5x/
+ // for cv72, the test models were in the path /tmp/nn/model/cv7x/
+ // for cv75, the test models were in the path /tmp/nn/model/cv75/
+
+ // yolov5, with post-processing, drawing bboxes on overlay
+ // osd_size = clut_size(default 16x1024) + area_size(1920x1080) * buf_num(2)
+ 9.6.1) gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 \
+    label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin \
+    type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 ! queue ! amba_venc_overlay_bbox stream_id = 0 \
+    osd_offset =0 osd_size=4163584 area=0 buf_num=2 font = /tmp/arial.ttf score_lmt = 0.25 sync=false
+
+ // yolov5, with roi setting
+ 9.6.2) gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 \
+    label = /tmp/nn/in/coco_class_names.txt model= /tmp/nn/model/onnx_yolov5s_cavalry.bin \
+    type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 roi=640.360.1280.720 ! queue ! amba_venc_overlay_bbox stream_id = 0 \
+    osd_offset =0 osd_size=4163584 area=0 buf_num=2 font = /tmp/arial.ttf score_lmt = 0.25 roi=640.360.1280.720 sync=false
+
+ //tiny yolov3, with post-processing, drawing bboxes on overlay
+ 9.7) gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = data out_name = layer115-conv out_name = layer125-conv \
+    label = /tmp/nn/in/live_voc_labels.txt model = /tmp/nn/model/yolov3_fastest_xl_cavalry.bin \
+    type = yolov3x conf_threshold = 0.8 nms = 0.3 top_k = 100 ! queue ! amba_venc_overlay_bbox stream_id = 0 \
+    osd_offset =0 osd_size=4163584 area=0 buf_num=2 font = /tmp/arial.ttf score_lmt = 0.8 sync=false
+
+ // without post-processing, just remove "type=xxx", so that "label=xxx" also not necessary.
+
+ // efficientnet, without post-processing
+ 9.8) gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = input out_name = 672 \
+    label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/efficientnet_cavalry.bin \
+    conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+ // efficientdet_lite0, without post-processing
+ 9.9)
+    // cv22/cv25
+    gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = image_arrays out_name = concat_1 out_name = Sigmoid \
+    label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/cavalry_efficientdet_lite0.bin \
+    conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+    // tf_efficientdet_lite0
+    gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = image_arrays out_name = Sigmoid out_name = ArgMax out_name = stack_2 \
+    label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/tf_efficientdet_lite0_cavalry.bin \
+    conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+ // movenet_lightning, without post-processing
+ 9.10)
+    // cv22/cv25
+    gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall \
+    label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/cavalry_movenet_lightning.bin \
+    conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+    // tf_movenet_lightning_cavalry
+    gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall \
+    label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/tf_movenet_lightning_cavalry.bin \
+    conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+ // movenet_thunder, without post-processing
+ 9.11)
+     // cv22/cv25
+     gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall \
+    label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/cavalry_movenet_thunder.bin \
+    conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+    // tf_movenet_thunder_cavalry
+    gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall \
+    label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/tf_movenet_thunder_cavalry.bin \
+    conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+ // fast_depth, without post-processong
+ 9.12) gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = input.1 out_name = 424 \
+    model = /tmp/nn/model/onnx_fast_depth_cavalry.bin \
+    conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+10) Test and validation: machine learning (ambarella plugin + nnstreamer)
+ // for cv22/cv25
+ 10.1) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+ // for cv28
+ 10.2) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+// for cv52
+ 10.3) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+ // for cv72
+ 10.4) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+ // for cv75
+ 10.5)
+      modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --na; modprobe imx274_mipi vinc_id=0x40
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams.lua
+
+ // machine learning inference with post-process in tensor_filter
+ 10.6) gst-launch-1.0 -e amba_camsrc buf-id=0 ! queue ! tensor_converter ! \
+    tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+    custom=in_name:images,out_name:1037+1017+997,label:/tmp/nn/in/coco_class_names.txt,f:0.25,nms:0.45,top_k:100,type:yolov5s,in_data_fmt:0.0.8.0 ! tensor_sink
+
+ // machine learning inference with post-process in tensor_decoder
+ // The output data format of NN model generated by CNNGEN was usually FP16(1.1.0.4) or FP32(1.2.0.7)
+ // If want to get FP32 data for postprocess, just setup "nn_out_f32:1" in tensor_filter.
+ 10.7)
+  // yolov5s, postprocess in bounding_boxes, output with drawed video "RGBA".
+  gst-launch-1.0 -e amba_camsrc buf-id=0 ! queue ! tensor_converter ! \
+tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0,nn_out_f32:1 ! tensor_decoder mode=bounding_boxes option1=amba_yolov5 \
+option2=/tmp/nn/in/coco_class_names.txt option3=f:0.25,nms:0.45,top_k:100 option4=1280:720 option5=416:416 ! videoconvert ! fakesink
+
+  // yolov5s, postprocess in bounding_boxes_ori, output with post-process results in 3 tensors(0: bboxes, 1: drive area mask(yolop), 2: lane line mask(yolop)).
+  gst-launch-1.0 -e amba_camsrc buf-id=0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0,nn_out_f32:1 ! tensor_decoder mode=bounding_boxes_ori \
+option1=amba_yolov5 option2=/tmp/nn/in/coco_class_names.txt option3=f:0.25,nms:0.45,top_k:100 option5=416:416 ! fakesink
+
+  // yolop model for cv72, postprocess in bounding_boxes
+  gst-launch-1.0 -v -e amba_camsrc buf-id=0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/cv7x/cv72_cavalry3.0.3_onnx_yolop.bin \
+custom=in_name:images,out_name:1159+1515+drive_area_seg+lane_line_seg+1871,in_data_fmt:0.0.0.0,nn_out_f32:1 ! \
+tensor_decoder mode=bounding_boxes option1=amba_yolop option2=/tmp/nn/in/coco_class_names.txt \
+option3=f:0.25,nms:0.45,top_k:100 option4=1280:720 option5=640:640 ! fakesink
+
+  // yolop model for cv72, postprocess in bounding_boxes_ori
+  gst-launch-1.0 -v -e amba_camsrc buf-id=0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/cv7x/cv72_cavalry3.0.3_onnx_yolop.bin \
+custom=in_name:images,out_name:1159+1515+drive_area_seg+lane_line_seg+1871,in_data_fmt:0.0.0.0,nn_out_f32:1 ! \
+tensor_decoder mode=bounding_boxes_ori option1=amba_yolop option2=/tmp/nn/in/coco_class_names.txt \
+option3=f:0.25,nms:0.45,top_k:100 option4=640:640 option5=640:640 ! fakesink
+
+ // machine learning inference without post-process
+ 10.8) gst-launch-1.0 -e amba_camsrc buf-id=0 ! queue ! tensor_converter ! \
+    tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+    custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! tensor_sink
+
+ // machine learning inference without post-process, with roi
+ 10.9) gst-launch-1.0 -e amba_camsrc buf-id=0 ! queue ! tensor_converter ! \
+    tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+    custom=in_name:images,out_name:1037+1017+997,roi:640.360.1280.720,in_data_fmt:0.0.8.0 ! tensor_sink
+
+11) SW decoding to machine learning (ml_inference/tensor_filter) scenario
+
+ // ml_inference
+ // h264 (mp4) to yolov5, with post-process, add "--gst-debug-level 3" to print the detected bounding boxes information
+ 11.1) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8_h264.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 ! queue ! fakesink
+
+ // h265 (mp4) to yolov5, with post-process, add "--gst-debug-level 3" to print the detected bounding boxes information
+ 11.2) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8_h265.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h265parse ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 ! queue ! fakesink
+
+ // h264 (es) to yolov5, with post-process, add "--gst-debug-level 3" to print the detected bounding boxes information
+ 11.3) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin conf_threshold = 0.25 nms = 0.45 top_k = 100 type = yolov5s ! queue ! fakesink
+
+ // h265 (es) to yolov5, with post-process, add "--gst-debug-level 3" to print the detected bounding boxes information
+ 11.4) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h265 ! h265parse ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin conf_threshold = 0.25 nms = 0.45 top_k = 100 type = yolov5s ! queue ! fakesink
+
+ // tensor_filter
+ // h264 (mp4) to yolov5, without post-process
+ 11.5) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8_h264.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! fakesink
+
+ // h265 (mp4) to yolov5, without post-process
+ 11.6) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8_h265.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h265parse ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! fakesink
+
+ // h264 (es) to yolov5, without post-process
+ 11.7) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! fakesink
+
+ // h265 (es) to yolov5, without post-process
+ 11.8) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h265 ! h265parse ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! fakesink
+
+ // h264 (es) to motion jpeg
+ 11.9) gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! avenc_mjpeg ! qtmux ! filesink location=/tmp/mojpeg.mp4
+
+ // motion jpeg to yolov5
+ 11.10) gst-launch-1.0 filesrc location=/tmp/mojpeg.mp4 ! qtdemux ! queue ! avdec_mjpeg ! videoconvert ! video/x-raw,format=RGBP ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 ! fakesink
+
+12) Test and validation: machine learning with multiple inputs (nnstreamer)
+ // test on cv22/cv25
+ 12.1) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+ // notice: numbers of input tensors in tensor_filter must be equal to the numbers of NN input feature maps.
+ // give data formats([sign.datasize.exp_offset.exp_bits], refered to the doc of CNNGen) of input tensors "in_data_fmt:x.x.x.x+x.x.x.x+...",
+ // if not set, refered to tensor types of input tensors, default _NNS_UINT8->[0.0.8.0]([0,2^(8-0)/2^8)), _NNS_FLOAT32->[1.2.0.7](IEEE-754)
+
+ // the data used below was all random that only for test.
+
+ // tf_mobilenetv2, without post-process
+ 12.2)
+  // *********************************************************************************************
+  // $ test_nnctrl -b /tmp/multi_inputs_model/cv22_cavalry2.2.8.4_tf_mobilenetv2_nv12.bin --dummy -e
+  // Input: 0 [x] dim: (1, 2, 112, 112), pitch: 128, dram_fmt: 0, bitvector: 0, data_fmt: (0, 0, 0, 0), loop_cnt: 1, size: 28672, phys: 0x6083e000, virt: 0x7fbb36b000
+  // Input: 1 [x.1] dim: (1, 1, 224, 224), pitch: 224, dram_fmt: 0, bitvector: 0, data_fmt: (0, 0, 0, 0), loop_cnt: 1, size: 50176, phys: 0x60845000, virt: 0x7fbb372000
+  // Output: 0 [dense_1/BiasAdd] dim: (1, 1000, 1, 1), pitch: 32, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 32000, phys: 0x6087ec00, virt: 0x7fbb3abc00
+  // *********************************************************************************************
+
+  // input tensors: dims=112:112:2:1+224:224:1:1, types=uint8+uint8(0.0.0.0+0.0.0.0)
+  gst-launch-1.0 -v filesrc location=/tmp/src_112x112x2_u8.bin blocksize=25088 ! application/octet-stream ! \
+tensor_converter input-dim=112:112:2:1 input-type=uint8 ! queue ! mux.sink_0 \
+filesrc location=/tmp/src_224x224x1_u8.bin blocksize=50176 ! application/octet-stream ! tensor_converter input-dim=224:224:1:1 input-type=uint8 ! queue ! mux.sink_1 \
+tensor_mux name=mux sync_mode=nosync ! queue ! tensor_filter framework=amba_cvflow model=/tmp/multi_inputs_model/cv22_cavalry2.2.8.4_tf_mobilenetv2_nv12.bin \
+custom=in_name:x+x.1,out_name:dense_1/BiasAdd,in_data_fmt:0.0.0.0+0.0.0.0 ! queue ! filesink location=/tmp/nns_tf_mobilenet_v2_out.bin
+
+  // input tensors: dims=2880:1856:2:1+2880:1856:1:1, types=uint8+uint8(0.0.0.0+0.0.0.0)
+  gst-launch-1.0 -v filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! \
+queue ! tensor_converter ! tensor_split name=split tensorseg=2880:1856:2:1,2880:1856:1:1 \
+split.src_0 ! queue ! mux.sink_0 split.src_1 ! queue ! mux.sink_1 tensor_mux name=mux sync_mode=nosync ! queue ! \
+tensor_filter framework=amba_cvflow model=/tmp/multi_inputs_model/cv22_cavalry2.2.8.4_tf_mobilenetv2_nv12.bin \
+custom=in_name:x+x.1,out_name:dense_1/BiasAdd,in_data_fmt:0.0.0.0+0.0.0.0 ! queue ! filesink location=/tmp/nns_tf_mobilenet_v2_out.bin
+
+  //input tensors: dims=112:112:2:1+224:224:1:1, types=float32+uint8(1.2.0.7+0.0.0.0)
+  gst-launch-1.0 -v filesrc location=/tmp/src_112x112x2_f32.bin blocksize=100352 ! application/octet-stream ! \
+tensor_converter input-dim=112:112:2:1 input-type=float32 ! queue ! mux.sink_0 \
+filesrc location=/tmp/src_224x224x1_u8.bin blocksize=50176 ! application/octet-stream ! tensor_converter input-dim=224:224:1:1 input-type=uint8 ! queue ! mux.sink_1 \
+tensor_mux name=mux sync_mode=nosync ! queue ! tensor_filter framework=amba_cvflow model=/tmp/multi_inputs_model/cv22_cavalry2.2.8.4_tf_mobilenetv2_nv12.bin \
+custom=in_name:x+x.1,out_name:dense_1/BiasAdd,in_data_fmt:1.2.0.7+0.0.0.0 ! queue ! filesink location=/tmp/nns_tf_mobilenet_v2_out.bin
+
+ // onnx_robust_video_matting, without post-process
+ 12.3)
+  // *********************************************************************************************
+  // $ test_nnctrl -b /tmp/multi_inputs_model/cv22_cavalry2.2.8.4_onnx_robust_video_matting.bin --dummy -e
+  // Input: 0 [r1i] dim: (1, 16, 135, 240), pitch: 960, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 2073600, phys: 0x607b9000, virt: 0x7f89790000
+  // Input: 1 [src] dim: (1, 3, 1080, 1920), pitch: 1920, dram_fmt: 0, bitvector: 0, data_fmt: (0, 0, 0, 0), loop_cnt: 1, size: 6220800, phys: 0x609b3400, virt: 0x7f8998a400
+  // Input: 2 [r4i] dim: (1, 64, 17, 30), pitch: 128, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 139264, phys: 0x60fa2000, virt: 0x7f89f79000
+  // Input: 3 [r3i] dim: (1, 40, 34, 60), pitch: 256, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 348160, phys: 0x60fc4000, virt: 0x7f89f9b000
+  // Input: 4 [r2i] dim: (1, 20, 68, 120), pitch: 480, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 652800, phys: 0x61019000, virt: 0x7f89ff0000
+  // Output: 0 [pha] dim: (1, 1, 1080, 1920), pitch: 7680, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 8294400, phys: 0x6275e800, virt: 0x7f8b735800
+  // Output: 1 [r1o] dim: (1, 16, 135, 240), pitch: 960, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 2073600, phys: 0x62f47800, virt: 0x7f8bf1e800
+  // Output: 2 [r2o] dim: (1, 20, 68, 120), pitch: 480, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 652800, phys: 0x6208ad80, virt: 0x7f8b061d80
+  // Output: 3 [r3o] dim: (1, 40, 34, 60), pitch: 256, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 348160, phys: 0x6212a380, virt: 0x7f8b101380
+  // Output: 4 [r4o] dim: (1, 64, 17, 30), pitch: 128, dram_fmt: 0, bitvector: 0, data_fmt: (1, 2, 0, 7), loop_cnt: 1, size: 139264, phys: 0x62187f80, virt: 0x7f8b15ef80
+  // *********************************************************************************************
+
+  gst-launch-1.0 -v tensor_mux name=mux sync-mode=nosync ! tensor_filter framework=amba_cvflow model=/tmp/multi_inputs_model/cv22_cavalry2.2.8.4_onnx_robust_video_matting.bin \
+custom=in_name:r1i+src+r4i+r3i+r2i,out_name:pha+r1o+r2o+r3o+r4o,in_data_fmt:1.2.0.7+0.0.0.0+1.2.0.7+1.2.0.7+1.2.0.7 ! \
+queue ! tensor_demux name=demux demux.src_0 ! queue ! filesink location=/tmp/dst_1920x1080x1_f32.bin \
+demux.src_1 ! queue ! filesink location=/tmp/dst_240x135x16_f32.bin \
+demux.src_2 ! queue ! filesink location=/tmp/dst_120x68x20_f32.bin \
+demux.src_3 ! queue ! filesink location=/tmp/dst_60x34x40_f32.bin \
+demux.src_4 ! queue ! filesink location=/tmp/dst_30x17x64_f32.bin \
+filesrc location=/tmp/src_240x135x16_f32.bin blocksize=2073600 ! application/octet-stream ! tensor_converter input-dim=240:135:16:1 input-type=float32 ! queue ! mux.sink_0 \
+filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! queue ! mux.sink_1 \
+filesrc location=/tmp/src_30x17x64_f32.bin blocksize=130560 ! application/octet-stream ! tensor_converter input-dim=30:17:64:1 input-type=float32 ! queue ! mux.sink_2 \
+filesrc location=/tmp/src_60x34x40_f32.bin blocksize=326400 ! application/octet-stream ! tensor_converter input-dim=60:34:40:1 input-type=float32 ! queue ! mux.sink_3 \
+filesrc location=/tmp/src_120x68x20_f32.bin blocksize=652800 ! application/octet-stream ! tensor_converter input-dim=120:68:20:1 input-type=float32 ! queue ! mux.sink_4
+
+
+13) Test and validation: machine learning with RNN (nnstreamer)
+ // test on cv22/cv25
+ 13.1) modprobe cavalry
+ 13.2) cavalry_load -f /lib/firmware/cavalry.bin -r
+ 13.3) init.sh --imx274_mipi
+ 13.4) test_aaa_service -a &
+ 13.5) test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+ // The way of running RNN which converted by Amba CNNGEN tool, was similar with typical NN.
+
+ // lstm, without post-process
+ 13.6)
+  // ***********************************************************************************
+  // $ test_nnctrl -b /tmp/lstm_model/warpctc_one_shot_cavalry.bin --dummy -e
+  // Total neural network num: 1
+  // Input: 0 [input] dim: (1, 3, 30, 80), pitch: 96, dram_fmt: 0, bitvector: 0, data_fmt: (0, 0, 8, 0), loop_cnt: 1, size: 8640, phys: 0x6042e000, virt: 0x7fb975d000
+  // Input: 1 [indicator] dim: (1, 1, 1, 1), pitch: 32, dram_fmt: 0, bitvector: 0, data_fmt: (0, 0, 0, 0), loop_cnt: 80, size: 2560, phys: 0x604301c0, virt: 0x7fb975f1c0
+  // Output: 0 [fc1] dim: (1, 80, 1, 11), pitch: 32, dram_fmt: 0, bitvector: 0, data_fmt: (1, 0, 1, 0), loop_cnt: 1, size: 2560, phys: 0x604592c0, virt: 0x7fb97882c0
+  // ***********************************************************************************
+
+  gst-launch-1.0 -v filesrc location=/tmp/lstm_model/00000-50337.bin blocksize=7200 ! application/octet-stream ! \
+tensor_converter input-dim=80:30:3:1 input-type=uint8 ! queue ! mux.sink_0 \
+filesrc location=/tmp/lstm_model/indicator.bin blocksize=1 ! application/octet-stream ! tensor_converter input-dim=1:1:1:1 input-type=uint8 ! queue ! mux.sink_1 \
+tensor_mux name=mux sync_mode=nosync ! queue ! tensor_filter framework=amba_cvflow model=/tmp/lstm_model/warpctc_one_shot_cavalry.bin \
+custom=in_name:input+indicator,out_name:fc1,in_data_fmt:0.0.8.0+0.0.0.0 ! queue ! filesink location=/tmp/nns_lstm_out.bin
+
+14) Test and validation: set/update encoding parameters when setup gst pipeline (by element amba_venccap).
+ // for cv22/cv25
+ 14.1) init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/dualvin_12_streams.lua --enc-mode 0
+ // for cv28
+ 14.2) init.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_12_streams.lua --enc-mode 0
+// for cv52
+ 14.3) init.sh --na; modprobe max9296 id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_12_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv72
+ 14.4) init.sh --na; modprobe max9296 id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_12_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv75
+ 14.5)
+      init.sh --na; modprobe imx274_mipi vinc_id=0x40
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv75_vin0_1_12_streams.lua
+
+ //set encoding parameters by amba_venccap
+ 14.6) gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,frame_factor:1/15,idr_interval:1,M:1,N:30,start:1,stream_id:1,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,bitrate:1000000,N:150,start:1,stream_id:2,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,bc:vbr,vbr_bitrate:10000~1000000,N:30,start:1,stream_id:3,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,bitrate:800000,N:30,start:1,stream_id:4,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,bitrate:150000,N:150,start:1,stream_id:5,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,bitrate:10000,N:30,frame_factor:1/15,start:1 \
+    ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265.mp4
+
+ 14.7) set encoding parameters by test_encode first, then changed by amba_venccap.
+
+   // set encoding parameters by test_encode first
+   14.7.1) test_encode  -S 0 -b 0 -H 1080p --frame-factor 1/15 --idr 1 -M 1 -N 30 -e \
+    -S 1 -b 0 -H 1080p --bitrate 1000000 -N 150 -e \
+    -S 2 -b 1 -H 720p --bc vbr --vbr-bitrate 10000~1000000 -N 30 -e \
+    -S 3 -b 1 -h 720p --bitrate 800000 -N 30 -e \
+    -S 4 -b 2 -H 360p --bitrate 150000 -N 150 -e \
+    -S 5 -b 2 -H 360p --bitrate 10000 -N 30 --frame-factor 1/15 -e \
+    -S 6 -b 3 -H 2560x1440 --frame-factor 1/30 -e \
+    -S 7 -b 3 -H 2560x1440 --bitrate 4000000 -N 300 -e \
+    -S 8 -b 4 -H 720p --bitrate 1000000 -N 48 --frame-factor 4/5 -e \
+    -S 9 -b 4 -h 720p --bitrate 800000 -N 40 --frame-factor 2/3 -e \
+    -S 10 -b 5 -H 360p --bitrate 200000 -N 150 --frame-factor 1/2 -e \
+    -S 11 -b 5 -H 360p --bitrate 10000 -N 30 --frame-factor 1/30 -e
+
+   // change encoding parameters by amba_venccap then
+   14.7.2) gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,frame_factor:1/15,idr_interval:1,M:1,N:30,start:1,stream_id:1,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,bitrate:1000000,N:150,start:1,stream_id:2,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,bc:vbr,vbr_bitrate:10000~1000000,N:30,start:1,stream_id:3,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,bitrate:800000,N:30,start:1,stream_id:4,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,bitrate:150000,N:150,start:1,stream_id:5,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,bitrate:10000,N:30,frame_factor:1/15,start:1 \
+    ! amba_vencdemux name=dm dm.stream0 ! queue ! h265parse ! mp4mux ! filesink location=/tmp/h265.mp4
+
+
+15) Test and validation: update encoding parameters in runtime (by gstd, gst-client and element amba_venccap).
+ // for cv22/cv25
+ 15.1) init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/dualvin_12_streams.lua --enc-mode 0
+ // for cv28
+ 15.2) init.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_12_streams.lua --enc-mode 0
+// for cv52
+ 15.3) init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_12_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv72
+ 15.4) init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_12_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+ // for cv75
+ 15.5)
+      init.sh --na; modprobe imx274_mipi vinc_id=0x40
+      test_aaa_service -a &
+      test_encode --resource-cfg /home/root/cv75_vin0_1_12_streams.lua
+
+ 15.6) gstd
+ 15.7) gst-client (on another console)
+  // at gst-client
+  15.7.1) pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265.mp4
+  15.7.2) pipeline_play p1
+  // change bitrate
+  15.7.3) element_set p1 venc enc stream_id:0,bitrate:1000000
+  // change absolute bitrate
+  15.7.4) element_set p1 venc enc stream_id:0,stop:1,abs-br:1,bitrate:1000000,start:1
+  // change vbr range
+  15.7.5) element_set p1 venc enc stream_id:0,vbr_bitrate:10000~1000000
+  // change bitrate control: cbr, vbr, cbr-quality, vbr-quality
+  15.7.6) element_set p1 venc enc stream_id:0,bc:cbr,bitrate:1000000
+  // force IDR
+  15.7.7) element_set p1 venc enc stream_id:0,force_idr:1
+  // stop encoding
+  15.7.8) element_set p1 venc enc stream_id:0,stop:1
+  // change resolution of canvas buffer and stream
+  15.7.9) element_set p1 venc enc stream_id:0,stop:1,chan-id:0,srcbuf-id:2,srcbuf-input:320.180.1280.720,srcbuf-output:0.0.640.480,stream-output:0.0.640.480,sar:1/1,start:1
+  // not ready: demux issue. change source buffer, frame_factor, idr_interval, M, N, codec type, stream-output and start encoding,
+  15.7.10) element_set p1 venc enc stream_id:0,canvas-id:0,frame_factor:1/15,idr_interval:1,M:1,N:30,type:h265,stream-output:0.0.1280.720,start:1
+  15.7.11) event_eos p1
+  15.7.12) pipeline_stop p1
+  15.7.13) pipeline_delete p1
+
+
+16) mimic dual vin scenarios (12 streams)
+ // for cv22/cv25
+ 16.1) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       //for cv25, add  --check-disable-all 1
+       test_encode --resource-cfg /home/root/dualvin_12_streams.lua --enc-mode 0 --enc-dummy-latency 2
+       rtsp_server&
+
+// for cv28
+ 16.2) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_12_streams.lua --enc-mode 0 --enc-dummy-latency 2
+       rtsp_server&
+
+  // for cv52
+ 16.3) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_12_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+       rtsp_server&
+
+ // for cv72
+ 16.4) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_12_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+       rtsp_server&
+ // for cv75
+ 16.5) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe imx274_mipi vinc_id=0x40
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/cv75_vin0_1_12_streams.lua
+       rtsp_server&
+
+ 16.6) gstd
+ 16.7) gst-client (on another console)
+
+ 16.8) mimic 12 streams scenario
+  16.8.1.a) in gst-client, create pipeline
+    //for too many streams, it's needed to setup "alloc_mem=1" in amba_venccap element, "max-size-time=0 max-size-bytes=0 max-size-buffers=0" in queue.
+    pipeline_create p1 amba_venccap name=venc alloc_mem=1 enc=\
+      stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,N:150,start:1,\
+      stream_id:1,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,trigger_frame:1,N:1,start:1,\
+      stream_id:2,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,\
+      stream_id:3,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,\
+      stream_id:4,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,\
+      stream_id:5,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,\
+      stream_id:6,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,\
+      stream_id:7,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,trigger_frame:1,N:1,start:1,\
+      stream_id:8,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,\
+      stream_id:9,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,\
+      stream_id:10,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:200000,N:150,frame_factor:1/2,start:1,\
+      stream_id:11,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 \
+      ! amba_vencdemux name=dm filename-base=/tmp/heic_0_%06d.heic \
+      dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 \
+      dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 \
+      dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 \
+      dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 \
+      dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 \
+      dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 \
+      dm.stream8 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 \
+      dm.stream9 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 \
+      dm.stream10 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 \
+      dm.stream11 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+    // in one line
+    pipeline_create p1 amba_venccap name=venc alloc_mem=1 enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,N:150,start:1,stream_id:1,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,trigger_frame:1,N:1,start:1,stream_id:2,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,stream_id:3,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,stream_id:4,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,stream_id:5,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:6,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:7,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,trigger_frame:1,N:1,start:1,stream_id:8,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:9,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:10,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:200000,N:150,frame_factor:1/2,start:1,stream_id:11,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm filename-base=/tmp/heic_0_%06d.heic dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream8 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream9 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 dm.stream10 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 dm.stream11 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+
+  16.8.1.b) in gst-client, create pipeline, with test_encode to setup encoding settings
+
+    // test_encode to setup encoding settings
+    test_encode -S 0 -b 0 -H 1080p --abs-br 1 --bitrate 1000000 -N 150 -e \
+             -S 1 -b 0 -H 1080p --trigger-frame 1 -N 1 -e \
+             -S 2 -b 1 -H 720p --abs-br 1 --bitrate 750000 -N 30 -e \
+             -S 3 -b 1 -h 720p --abs-br 1 --bitrate 800000 -N 30 -e \
+             -S 4 -b 2 -H 360p --abs-br 1 --bitrate 150000 -N 150 -e \
+             -S 5 -b 2 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/30 -e \
+             -S 6 -b 3 -H 2560x1440 --abs-br 1 --bitrate 4000000 -N 300 -e \
+             -S 7 -b 3 -H 2560x1440 --trigger-frame 1 -N 1 -e \
+             -S 8 -b 4 -H 720p --abs-br 1 --bitrate 1000000 -N 48 --frame-factor 4/5 -e \
+             -S 9 -b 4 -h 720p --abs-br 1 --bitrate 800000 -N 40 --frame-factor 2/3 -e \
+             -S 10 -b 5 -H 360p --abs-br 1 --bitrate 200000 -N 150 --frame-factor 1/2 -e \
+             -S 11 -b 5 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/60 -e
+
+    // in one line
+    test_encode -S 0 -b 0 -H 1080p --abs-br 1 --bitrate 1000000 -N 150 -e -S 1 -b 0 -H 1080p --trigger-frame 1 -N 1 -e -S 2 -b 1 -H 720p --abs-br 1 --bitrate 750000 -N 30 -e -S 3 -b 1 -h 720p --abs-br 1 --bitrate 800000 -N 30 -e -S 4 -b 2 -H 360p --abs-br 1 --bitrate 150000 -N 150 -e -S 5 -b 2 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/30 -e -S 6 -b 3 -H 2560x1440 --abs-br 1 --bitrate 4000000 -N 300 -e -S 7 -b 3 -H 2560x1440 --trigger-frame 1 -N 1 -e -S 8 -b 4 -H 720p --abs-br 1 --bitrate 1000000 -N 48 --frame-factor 4/5 -e -S 9 -b 4 -h 720p --abs-br 1 --bitrate 800000 -N 40 --frame-factor 2/3 -e -S 10 -b 5 -H 360p --abs-br 1 --bitrate 200000 -N 150 --frame-factor 1/2 -e -S 11 -b 5 -H 360p --abs-br 1 --bitrate 10000 -N 60 --frame-factor 1/60 -e
+
+    // gst-client to create pipeline
+    pipeline_create p1 amba_venccap name=venc alloc_mem=1 ! amba_vencdemux name=dm heic-capture-id=1,7 filename-base=/tmp/heic_0_%06d.heic \
+      dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 \
+      dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 \
+      dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 \
+      dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 \
+      dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 \
+      dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 \
+      dm.stream8 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 \
+      dm.stream9 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 \
+      dm.stream10 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 \
+      dm.stream11 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+    // in one line
+    pipeline_create p1 amba_venccap name=venc alloc_mem=1 ! amba_vencdemux name=dm heic-capture-id=1,7 filename-base=/tmp/heic_0_%06d.heic dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream8 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream9 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 dm.stream10 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 dm.stream11 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+
+  16.8.1.c) in gst-client, create pipeline, use frame factor 1/15 for trigger frame
+
+    pipeline_create p1 amba_venccap name=venc alloc_mem=1 enc=\
+      stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,N:150,start:1,\
+      stream_id:1,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,frame_factor:1/30,N:1,start:1,\
+      stream_id:2,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,\
+      stream_id:3,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,\
+      stream_id:4,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,\
+      stream_id:5,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,\
+      stream_id:6,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,\
+      stream_id:7,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,frame_factor:1/30,N:1,start:1,\
+      stream_id:8,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,\
+      stream_id:9,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,\
+      stream_id:10,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:200000,N:150,frame_factor:1/2,start:1,\
+      stream_id:11,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 \
+      ! amba_vencdemux name=dm \
+      dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 \
+      dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! amba_heicfilesink filename-base=/tmp/heic_0_%06d.heic \
+      dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 \
+      dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 \
+      dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 \
+      dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 \
+      dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 \
+      dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! amba_heicfilesink filename-base=/tmp/heic_1_%06d.heic \
+      dm.stream8 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 \
+      dm.stream9 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 \
+      dm.stream10 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 \
+      dm.stream11 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+    // in one line
+    pipeline_create p1 amba_venccap name=venc alloc_mem=1 enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,N:150,start:1,stream_id:1,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,frame_factor:1/30,N:1,start:1,stream_id:2,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,stream_id:3,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,stream_id:4,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,stream_id:5,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:6,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:7,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,frame_factor:1/30,N:1,start:1,stream_id:8,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:9,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:10,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:200000,N:150,frame_factor:1/2,start:1,stream_id:11,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! amba_heicfilesink filename-base=/tmp/heic_0_%06d.heic dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_4.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_5.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! amba_heicfilesink filename-base=/tmp/heic_1_%06d.heic dm.stream8 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream9 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_3.mp4 dm.stream10 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_4.mp4 dm.stream11 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_5.mp4
+
+
+  16.8.2) in gst-client, play pipeline
+    pipeline_play p1
+  16.8.3) in gst-client, start/stop encoding, change VIN framerate, frame factor, idr interval, M, N, bitrate, force IDR
+    // stop image capture stream (stream 1 and stream 7)
+    element_set p1 venc enc stream_id:1,stop:1
+    element_set p1 venc enc stream_id:7,stop:1
+    // start image capture stream (stream 1 and stream 7)
+    element_set p1 venc enc stream_id:1,start:1
+    element_set p1 venc enc stream_id:7,start:1
+
+    // stop event trigger stream (stream 2 and stream 8)
+    element_set p1 venc enc stream_id:2,stop:1
+    element_set p1 venc enc stream_id:8,stop:1
+    // start event trigger stream (stream 2 and stream 8)
+    element_set p1 venc enc stream_id:2,start:1
+    element_set p1 venc enc stream_id:8,start:1
+
+    // stop webRTC stream (stream 3 and stream 9)
+    element_set p1 venc enc stream_id:3,stop:1
+    element_set p1 venc enc stream_id:9,stop:1
+    // start webRTC trigger stream (stream 3 and stream 9)
+    element_set p1 venc enc stream_id:3,start:1
+    element_set p1 venc enc stream_id:9,start:1
+
+    // stop hyperlapse stream (stream 5 and stream 11)
+    element_set p1 venc enc stream_id:5,stop:1
+    element_set p1 venc enc stream_id:11,stop:1
+    // start hyperlapse trigger stream (stream 3 and stream 9)
+    element_set p1 venc enc stream_id:5,start:1
+    element_set p1 venc enc stream_id:11,start:1
+
+    // capture heic in stream id X
+    element_set p1 dm heic-capture-id 1,7
+
+    // frame trigger image capture (stream 1 and stream 7)
+    element_set p1 venc enc stream_id:1,trigger_frame_num:1
+    element_set p1 venc enc stream_id:7,trigger_frame_num:1
+
+    // bitrate control (stream X)
+    element_set p1 venc enc stream_id:X,stop:1,abs-br:1,bitrate:1000000,start:1
+
+    // VIN fps (vin 1)
+    element_set p1 venc enc vsrc:1,vin_frame_rate:15
+
+    // force IDR (stream 1 and stream 7)
+    element_set p1 venc enc stream_id:1,force_idr:1
+    element_set p1 venc enc stream_id:7,force_idr:1
+
+    // change webRCT stream resolution (stream 3 and stream 9)
+    element_set p1 venc enc stream_id:3,stop:1,stream-output:0.0.640.360,start:1
+    element_set p1 venc enc stream_id:9,stop:1,stream-output:0.0.640.360,start:1
+
+  16.8.4) in gst-client, send eos for p1
+    event_eos p1
+  16.8.5) in gst-client, stop pipeline
+    pipeline_stop p1
+  16.8.6) in gst-client, delete pipeline
+    pipeline_delete p1
+
+ 16.9) mimic yolov5, efficient net, efficientdet_lite0
+  16.9.1) in gst-client, create pipeline
+    pipeline_create p2 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 ! queue ! amba_venc_overlay_bbox stream_id = 0 osd_offset =0 osd_size=4163584 area=0 buf_num=2 font = /tmp/arial.ttf score_lmt = 0.25 sync=false
+    pipeline_create p3 amba_camsrc buf-id = 4 ! queue ! mlinference in_name = input out_name = 672 label = /tmp/efficientnet/coco_ids.yaml model = /tmp/efficientnet/efficientnet_cavalry.bin type = efficientnet conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! autovideosink
+    // cv22/cv25
+    pipeline_create p4 amba_camsrc buf-id = 4 ! queue ! mlinference in_name = image_arrays out_name = concat_1 out_name = Sigmoid label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/cavalry_efficientdet_lite0.bin type = efficientdet_lite0 conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! autovideosink
+    // tf_efficientdet_lite0
+    pipeline_create p4 amba_camsrc buf-id = 4 ! queue ! mlinference in_name = image_arrays out_name = Sigmoid out_name = ArgMax out_name = stack_2 label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/tf_efficientdet_lite0_cavalry.bin conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+
+  16.9.2) in gst-client, play pipeline
+    pipeline_play p2
+    pipeline_play p3
+    pipeline_play p4
+  16.9.3) in gst-client, stop pipeline
+    pipeline_stop p2
+    pipeline_stop p3
+    pipeline_stop p4
+  16.9.4) in gst-client, delete pipeline
+    pipeline_delete p2
+    pipeline_delete p3
+    pipeline_delete p4
+
+
+
+17) mimic dual vin scenarios (8 streams switch)
+ // cv22/cv25
+ 17.1) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/dualvin_8_streams.lua --enc-mode 0
+       rtsp_server&
+
+// for cv28
+ 17.2) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_8_streams.lua --enc-mode 0
+       rtsp_server&
+
+  // for cv52
+ 17.3) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_8_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+       rtsp_server&
+
+ // for cv72
+ 17.4) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_8_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+       rtsp_server&
+
+ // for cv75
+ 17.5) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe imx274_mipi vinc_id=0x40
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/cv75_vin0_1_8_streams.lua
+       rtsp_server&
+
+ 17.6) gstd
+ 17.7) gst-client (on another console)
+
+ 17.8) mimic 8 stream recording scenario
+  17.8.1) in gst-client, create pipeline
+    pipeline_create p1 amba_venccap name=venc alloc_mem=1 enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,stream_id:2,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,stream_id:3,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+    //pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,stream_id:2,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,stream_id:3,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4
+    //pipeline_create p1 amba_venccap name=venc ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+    //gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,stream_id:2,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,stream_id:3,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+    //gst-launch-1.0 -v -e amba_venccap enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,stream_id:2,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,stream_id:3,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:6,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:20000,N:150,frame_factor:1/2,start:1,stream_id:7,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4
+    //gst-launch-1.0 -v -e amba_venccap ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_1.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_1.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_2.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+  17.8.2) in gst-client, play pipeline
+    pipeline_play p1
+  17.8.3) in gst-client, change framerate (frame factor, idr interval, M, N), bitrate, force IDR
+    element_set p1 venc enc stream_id:0,frame_factor:1/2,idr_interval:1,M:1,N:30
+    element_set p1 venc enc stream_id:0,stop:1,abs-br:1,bitrate:1000000,start:1
+    element_set p1 venc enc stream_id:0,force_idr:1
+  17.8.4) in gst-client, stop pipeline
+    event_eos p1
+    pipeline_stop p1
+  17.8.5) in gst-client, delete pipeline
+    pipeline_delete p1
+
+ 17.9) mimic 8 stream streaming scenario
+  17.9.1) in gst-client, create pipeline
+    pipeline_create p1 amba_venccap name=venc alloc_mem=1 enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,stream_id:2,stop:1,canvas-id:2,type:h264,stream-output:0.0.640.360,abs-br:1,bitrate:400000,N:30,start:1,stream_id:3,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:6,stop:1,canvas-id:5,type:h264,stream-output:0.0.640.360,abs-br:1,bitrate:400000,N:40,frame_factor:2/3,start:1,stream_id:7,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_1.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_1.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_2.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+    //pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,stream_id:2,stop:1,canvas-id:2,type:h264,stream-output:0.0.640.360,abs-br:1,bitrate:400000,N:30,start:1,stream_id:3,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:6,stop:1,canvas-id:5,type:h264,stream-output:0.0.640.360,abs-br:1,bitrate:400000,N:40,frame_factor:2/3,start:1,stream_id:7,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4
+    //pipeline_create p1 amba_venccap name=venc ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_1.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_1.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_2.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+    //gst-launch-1.0 -v -e amba_venccap name=venc enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,stream_id:2,stop:1,canvas-id:2,type:h264,stream-output:0.0.640.360,abs-br:1,bitrate:400000,N:30,start:1,stream_id:3,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:6,stop:1,canvas-id:5,type:h264,stream-output:0.0.640.360,abs-br:1,bitrate:400000,N:40,frame_factor:2/3,start:1,stream_id:7,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_1.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_1.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_2.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+    //gst-launch-1.0 -v -e amba_venccap name=venc enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,idr_interval:1,M:1,N:150,start:1,stream_id:1,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,stream_id:2,stop:1,canvas-id:2,type:h264,stream-output:0.0.640.360,abs-br:1,bitrate:400000,N:30,start:1,stream_id:3,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:4,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:5,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:6,stop:1,canvas-id:5,type:h264,stream-output:0.0.640.360,abs-br:1,bitrate:400000,N:40,frame_factor:2/3,start:1,stream_id:7,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4
+    //gst-launch-1.0 -v -e amba_venccap name=venc ! amba_vencdemux name=dm dm.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_0.mp4 dm.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_1.mp4 dm.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_0_2.mp4 dm.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_0_3.mp4 dm.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_0.mp4 dm.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_1.mp4 dm.stream6 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux ! filesink location=/tmp/h264_1_2.mp4 dm.stream7 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux ! filesink location=/tmp/h265_1_3.mp4
+
+  17.9.2) in gst-client, play pipeline
+    pipeline_play p1
+  17.9.3) in gst-client, change bitrate, force IDR
+    element_set p1 venc enc stream_id:0,stop:1,abs-br:1,bitrate:1000000,start:1
+    element_set p1 venc enc stream_id:0,force_idr:1
+  17.9.4) in gst-client, stop pipeline
+    event_eos p1
+    pipeline_stop p1
+  17.9.5) in gst-client, delete pipeline
+    pipeline_delete p1
+
+ 17.10) mimic yolov5, efficient net, efficientdet_lite0
+  17.10.1) in gst-client, create pipeline
+    pipeline_create p2 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 label = /tmp/nn/in/coco_class_names.txt model = /tmp/nn/model/onnx_yolov5s_cavalry.bin type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 ! queue ! amba_venc_overlay_bbox stream_id = 0 osd_offset =0 osd_size=4163584 area=0 buf_num=2 font = /tmp/arial.ttf score_lmt = 0.25 sync=false
+    pipeline_create p3 amba_camsrc buf-id = 4 ! queue ! mlinference in_name = input out_name = 672 label = /tmp/efficientnet/coco_ids.yaml model = /tmp/efficientnet/efficientnet_cavalry.bin type = efficientnet conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! autovideosink
+    // cv22/cv25
+    pipeline_create p4 amba_camsrc buf-id = 4 ! queue ! mlinference in_name = image_arrays out_name = concat_1 out_name = Sigmoid label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/cavalry_efficientdet_lite0.bin type = efficientdet_lite0 conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! autovideosink
+    // tf_efficientdet_lite0
+    pipeline_create p4 amba_camsrc buf-id = 4 ! queue ! mlinference in_name = image_arrays out_name = Sigmoid out_name = ArgMax out_name = stack_2 label = /tmp/nn/in/coco_ids.yaml model = /tmp/nn/model/tf_efficientdet_lite0_cavalry.bin conf_threshold = 0.2 nms = 0.5 top_k = 100 ! queue ! fakesink
+  17.10.2) in gst-client, play pipeline
+    pipeline_play p2
+    pipeline_play p3
+    pipeline_play p4
+  17.10.3) in gst-client, stop pipeline
+    pipeline_stop p2
+    pipeline_stop p3
+    pipeline_stop p4
+  17.10.4) in gst-client, delete pipeline
+    pipeline_delete p2
+    pipeline_delete p3
+    pipeline_delete p4
+
+18) mjpeg scenarios
+ // for cv22/cv25
+ 18.1) init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+ // for cv28
+ 18.2) init.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+ // for cv52
+ 18.3) init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+ // for cv72
+ 18.4) init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+ // for cv75
+ 18.5) init.sh --na; modprobe imx274_mipi vinc_id=0x40
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams.lua
+
+ // nv12 to jpeg files
+ 18.6)
+  // jpegenc
+  gst-launch-1.0 amba_camsrc buf-id = 0 ! jpegenc ! multifilesink location=/tmp/%02d.jpg
+  // avenc_mjpeg
+  gst-launch-1.0 amba_camsrc buf-id = 0 ! videoconvert ! avenc_mjpeg ! multifilesink location=/tmp/%02d.jpg
+
+ // jpeg to yuv file
+ 18.7)
+  // jpegdec
+  gst-launch-1.0 multifilesrc location=/tmp/%02d.jpg ! jpegparse ! jpegdec ! filesink location=/tmp/test.yuv
+  // avdec_mjpeg
+  gst-launch-1.0 multifilesrc location=/tmp/%02d.jpg ! jpegparse ! avdec_mjpeg ! filesink location=/tmp/test.yuv
+
+ // nv12 to motion jpeg
+ 18.8)
+  // jpegenc
+  gst-launch-1.0 -e amba_camsrc buf-id = 0 ! jpegenc ! qtmux ! filesink location=/tmp/test_mjpeg.mp4
+  // avenc_mjpeg
+  gst-launch-1.0 -e amba_camsrc buf-id = 0 ! videoconvert ! avenc_mjpeg ! qtmux ! filesink location=/tmp/test_mjpeg.mp4
+
+ // record motion jpeg from 'amba_venccap', six streams
+ 18.9)
+  //setup mjpeg params by test_encode
+  test_encode -A -m 1080p -b 0 -q 50 -e -B -m 1080p -b 1 -q 50 -e -C -m 480p -b 2 -q 100 -e -D -m 480p -b 3 -q 100 -e -E -m 480p -b 4 -q 100 -e -S 5 -m 480p -b 5 -q 100 -e
+
+  gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_0.mp4 \
+d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_1.mp4 \
+d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_2.mp4 \
+d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_3.mp4 \
+d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_4.mp4 \
+d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_5.mp4
+
+  // setup mjpeg params in 'amba_venccap' element
+  gst-launch-1.0 -e amba_venccap enc=stream_id:0,stop:1,canvas-id:0,type:mjpeg,stream-output:0.0.1920.1080,quality:50,start:1,\
+stream_id:1,stop:1,canvas-id:1,type:mjpeg,stream-output:0.0.1920.1080,quality:50,start:1,\
+stream_id:2,stop:1,canvas-id:2,type:mjpeg,stream-output:0.0.720.480,quality:100,start:1,\
+stream_id:3,stop:1,canvas-id:3,type:mjpeg,stream-output:0.0.720.480,quality:100,start:1,\
+stream_id:4,stop:1,canvas-id:4,type:mjpeg,stream-output:0.0.720.480,quality:100,start:1,\
+stream_id:5,stop:1,canvas-id:5,type:mjpeg,stream-output:0.0.720.480,quality:100,start:1 ! amba_vencdemux name=d \
+d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_0.mp4 \
+   d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_1.mp4 \
+   d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_2.mp4 \
+   d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_3.mp4 \
+   d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_4.mp4 \
+   d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_5.mp4
+
+ // decode motion jpeg to yuv
+ 18.10)
+  // jpegdec
+  gst-launch-1.0 -v filesrc location=/tmp/mjpeg_0.mp4 ! qtdemux ! queue ! jpegdec ! filesink location=/tmp/mjpeg_0.yuv
+  // avdec_mjpeg
+  gst-launch-1.0 -v filesrc location=/tmp/mjpeg_1.mp4 ! qtdemux ! queue ! avdec_mjpeg ! filesink location=/tmp/mjpeg_1.yuv
+
+ // update encoding parameters of mjpeg in runtime (by gstd, gst-client and element amba_venccap)
+ 18.11)
+  gstd
+  gst-client (on another console)
+  // at gst-client
+  18.11.1) pipeline_create p1 amba_venccap name=venc enc=stream_id:0,stop:1,canvas-id:0,type:mjpeg,stream-output:0.0.1920.1080,quality:50,start:1 ! amba_vencdemux name=d d.stream0 ! queue ! jpegparse ! qtmux ! filesink location=/tmp/mjpeg_0.mp4
+  18.11.2) pipeline_play p1
+  // change quality
+  18.11.3) element_set p1 venc enc stream_id:0,quality:100
+  // change jpeg-slice, only for DSP V5
+  18.11.4) element_set p1 venc enc stream_id:0,stop:1,jpeg-slice:2,start:1
+  // change restart-interval
+  18.11.5) element_set p1 venc enc stream_id:0,stop:1,restart-interval:100,start:1
+
+  18.11.6) event_eos p1
+  18.11.7) pipeline_stop p1
+  18.11.8) pipeline_delete p1
+
+// not ready, just skip
+19) mimic dual vin recording scenarios (12 streams) with gstinterpipe
+
+ 19.1) init.sh --imx274_mipi
+ 19.2) test_aaa_service -a &
+ //for cv25, add  --check-disable-all 1
+ 19.3) test_encode --resource-cfg /home/root/dualvin_12_streams.lua --enc-mode 0 --enc-dummy-latency 2
+
+ 19.4) gstd
+ 19.5) gst-client (on another console)
+
+ 19.6) mimic 12 streams scenario
+  19.6.1) in gst-client, create pipeline
+    //sink, with bitrate, frame_factor
+    pipeline_create p0 amba_venccap name=venc enc=\
+      stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,N:150,start:1,\
+      stream_id:1,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,trigger_frame:1,N:1,start:1,\
+      stream_id:2,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,\
+      stream_id:3,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,\
+      stream_id:4,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,\
+      stream_id:5,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,\
+      stream_id:6,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,\
+      stream_id:7,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,trigger_frame:1,N:1,start:1,\
+      stream_id:8,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,\
+      stream_id:9,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,\
+      stream_id:10,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:200000,N:150,frame_factor:1/2,start:1,\
+      stream_id:11,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 \
+      ! amba_vencdemux name=dm \
+      dm.stream0 ! queue ! interpipesink name=stream_src0 sync=true async=false \
+      dm.stream1 ! queue ! interpipesink name=stream_src1 sync=true async=false \
+      dm.stream2 ! queue ! interpipesink name=stream_src2 sync=true async=false \
+      dm.stream3 ! queue ! interpipesink name=stream_src3 sync=true async=false \
+      dm.stream4 ! queue ! interpipesink name=stream_src4 sync=true async=false \
+      dm.stream5 ! queue ! interpipesink name=stream_src5 sync=true async=false \
+      dm.stream6 ! queue ! interpipesink name=stream_src6 sync=true async=false \
+      dm.stream7 ! queue ! interpipesink name=stream_src7 sync=true async=false \
+      dm.stream8 ! queue ! interpipesink name=stream_src8 sync=true async=false \
+      dm.stream9 ! queue ! interpipesink name=stream_src9 sync=true async=false \
+      dm.stream10 ! queue ! interpipesink name=stream_src10 sync=true async=false \
+      dm.stream11 ! queue ! interpipesink name=stream_src11 sync=true async=false
+
+    // in one line
+    pipeline_create p0 amba_venccap name=venc alloc_mem=1 enc=stream_id:0,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,abs-br:1,bitrate:1000000,N:150,start:1,stream_id:1,stop:1,canvas-id:0,type:h265,stream-output:0.0.1920.1080,trigger_frame:1,N:1,start:1,stream_id:2,stop:1,canvas-id:1,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:750000,N:30,start:1,stream_id:3,stop:1,canvas-id:1,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:30,start:1,stream_id:4,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:150000,N:150,start:1,stream_id:5,stop:1,canvas-id:2,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/30,start:1,stream_id:6,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,abs-br:1,bitrate:4000000,N:300,start:1,stream_id:7,stop:1,canvas-id:3,type:h265,stream-output:0.0.2560.1440,trigger_frame:1,N:1,start:1,stream_id:8,stop:1,canvas-id:4,type:h265,stream-output:0.0.1280.720,abs-br:1,bitrate:1000000,N:48,frame_factor:4/5,start:1,stream_id:9,stop:1,canvas-id:4,type:h264,stream-output:0.0.1280.720,abs-br:1,bitrate:800000,N:40,frame_factor:2/3,start:1,stream_id:10,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:200000,N:150,frame_factor:1/2,start:1,stream_id:11,stop:1,canvas-id:5,type:h265,stream-output:0.0.640.360,abs-br:1,bitrate:10000,N:60,frame_factor:1/60,start:1 ! amba_vencdemux name=dm dm.stream0 ! queue ! interpipesink name=stream_src0 sync=true async=false dm.stream1 ! queue ! interpipesink name=stream_src1 sync=true async=false dm.stream2 ! queue ! interpipesink name=stream_src2 sync=true async=false dm.stream3 ! queue ! interpipesink name=stream_src3 sync=true async=false dm.stream4 ! queue ! interpipesink name=stream_src4 sync=true async=false dm.stream5 ! queue ! interpipesink name=stream_src5 sync=true async=false dm.stream6 ! queue ! interpipesink name=stream_src6 sync=true async=false dm.stream7 ! queue ! interpipesink name=stream_src7 sync=true async=false dm.stream8 ! queue ! interpipesink name=stream_src8 sync=true async=false dm.stream9 ! queue ! interpipesink name=stream_src9 sync=true async=false dm.stream10 ! queue ! interpipesink name=stream_src10 sync=true async=false dm.stream11 ! queue ! interpipesink name=stream_src11 sync=true async=false
+
+    //source
+    pipeline_create p1 interpipesrc listen-to=stream_src0 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_0_0.mp4 sync=true async=false
+    pipeline_create p2 interpipesrc listen-to=stream_src2 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_0_2.mp4 sync=true async=false
+    pipeline_create p3 interpipesrc listen-to=stream_src3 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h264parse ! qtmux ! filesink location=/tmp/h264_0_3.mp4 sync=true async=false
+    pipeline_create p4 interpipesrc listen-to=stream_src4 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_0_4.mp4 sync=true async=false
+    pipeline_create p5 interpipesrc listen-to=stream_src5 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_0_5.mp4 sync=true async=false
+    pipeline_create p6 interpipesrc listen-to=stream_src6 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_1_0.mp4 sync=true async=false
+    pipeline_create p7 interpipesrc listen-to=stream_src8 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_1_2.mp4 sync=true async=false
+    pipeline_create p8 interpipesrc listen-to=stream_src9 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h264parse ! qtmux ! filesink location=/tmp/h264_1_3.mp4 sync=true async=false
+    pipeline_create p9 interpipesrc listen-to=stream_src10 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_1_4.mp4 sync=true async=false
+    pipeline_create p10 interpipesrc listen-to=stream_src11 is-live=true stream-sync=restart-ts max-bytes=0 ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_1_5.mp4 sync=true async=false
+
+  19.6.2) in gst-client, play pipeline
+    pipeline_play p0
+    pipeline_play p1
+    pipeline_play p2
+    pipeline_play p3
+    pipeline_play p4
+    pipeline_play p5
+    pipeline_play p6
+    pipeline_play p7
+    pipeline_play p8
+    pipeline_play p9
+    pipeline_play p10
+
+  19.6.3) in gst-client, send eos for pipeline
+    event_eos p1
+    event_eos p2
+    event_eos p3
+    event_eos p4
+    event_eos p5
+    event_eos p6
+    event_eos p7
+    event_eos p8
+    event_eos p9
+    event_eos p10
+    event_eos p0
+
+  19.6.4) in gst-client, stop pipeline
+    pipeline_stop p1
+    pipeline_stop p2
+    pipeline_stop p3
+    pipeline_stop p4
+    pipeline_stop p5
+    pipeline_stop p6
+    pipeline_stop p7
+    pipeline_stop p8
+    pipeline_stop p9
+    pipeline_stop p10
+    pipeline_stop p0
+
+  19.6.5) in gst-client, delete pipeline
+    pipeline_delete p0
+    pipeline_delete p1
+    pipeline_delete p2
+    pipeline_delete p3
+    pipeline_delete p4
+    pipeline_delete p5
+    pipeline_delete p6
+    pipeline_delete p7
+    pipeline_delete p8
+    pipeline_delete p9
+    pipeline_delete p10
+
+20) Test and validation: compare outputs of machine learning (ml_inference + tensor_filter)
+ // for cv22/cv25
+ 20.1) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+ // for cv28
+ 20.2) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -rinit.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+// for cv52
+ 20.3) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+ // for cv72
+ 20.4) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+ // for cv75
+ 20.5) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe imx274_mipi vinc_id=0x40
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams.lua
+
+ // compare NN outputs between ml inference and nnstreamer with same inputs.
+ //RGBP
+ 20.6.1)
+  //yolov5
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 model = /tmp/nn/model/onnx_yolov5s_cavalry.bin dump=/tmp/dump_ml.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! filesink location=/tmp/dump_tf.bin
+
+  //tiny yolov3
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = data out_name = layer115-conv out_name = layer125-conv model = /tmp/nn/model/yolov3_fastest_xl_cavalry.bin dump=/tmp/dump.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/yolov3_fastest_xl_cavalry.bin custom=in_name:data,out_name:layer115-conv+layer125-conv,in_data_fmt:0.0.8.0 ! queue ! filesink location=/tmp/result.bin
+
+  // efficientnet
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = input out_name = 672 model = /tmp/efficientnet/efficientnet_cavalry.bin dump=/tmp/dump.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/efficientnet/efficientnet_cavalry.bin custom=in_name:input,out_name:672,in_data_fmt:0.0.0.0 ! queue ! filesink location=/tmp/result.bin
+
+  // efficientdet_lite0
+  // cv22/cv25
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = image_arrays out_name = concat_1 out_name = Sigmoid model = /tmp/nn/model/cavalry_efficientdet_lite0.bin dump=/tmp/dump.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/nn/model/cavalry_efficientdet_lite0.bin custom=in_name:image_arrays,out_name:concat_1+Sigmoid,in_data_fmt:0.0.0.0 ! queue ! filesink location=/tmp/result.bin
+
+  // tf_efficientdet_lite0
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = image_arrays out_name = Sigmoid out_name = ArgMax out_name = stack_2 model = /tmp/nn/model/tf_efficientdet_lite0_cavalry.bin dump=/tmp/dump.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/nn/model/tf_efficientdet_lite0_cavalry.bin custom=in_name:image_arrays,out_name:Sigmoid+ArgMax+stack_2,in_data_fmt:0.0.0.0 ! queue ! filesink location=/tmp/result.bin
+
+  // movenet_lightning
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall model = /tmp/movenet_lightning/cavalry_movenet_lightning.bin dump=/tmp/dump.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/movenet_lightning/cavalry_movenet_lightning.bin custom=in_name:serving_default_input,out_name:StatefulPartitionedCall,in_data_fmt:0.0.0.0 ! queue ! filesink location=/tmp/result.bin
+
+  // movenet_thunder
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall model = /tmp/movenet_thunder/cavalry_movenet_thunder.bin dump=/tmp/dump.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/movenet_thunder/cavalry_movenet_thunder.bin custom=in_name:serving_default_input,out_name:StatefulPartitionedCall,in_data_fmt:0.0.0.0 ! queue ! filesink location=/tmp/result.bin
+
+  // fast_depth
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! mlinference in_name = input.1 out_name = 424 model = /tmp/fast_depth/onnx_fast_depth_cavalry.bin dump=/tmp/dump.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/fast_depth/onnx_fast_depth_cavalry.bin custom=in_name:input.1,out_name:424,in_data_fmt:0.0.0.0 ! queue ! filesink location=/tmp/result.bin
+
+ //RGB
+ 20.6.2)
+  // Resizing interleaved data was not supported in mlinference now, just use "videoscale" to help resize input data.
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGB ! queue ! videoscale ! video/x-raw,width=416,height=416,format=RGB ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 model = /tmp/nn/model/onnx_yolov5s_cavalry.bin dump=/tmp/dump_ml.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGB ! queue ! videoscale ! video/x-raw,width=416,height=416,format=RGB ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! filesink location=/tmp/dump_tf.bin
+
+//BGRP
+ 20.6.3)
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGRP ! queue ! mlinference in_name = data out_name = layer115-conv out_name = layer125-conv model = /tmp/nn/model/yolov3_fastest_xl_cavalry.bin dump=/tmp/dump_ml.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGRP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/yolov3_fastest_xl_cavalry.bin custom=in_name:data,out_name:layer115-conv+layer125-conv,in_data_fmt:0.0.8.0 ! queue ! filesink location=/tmp/dump_tf.bin
+
+ //BGR
+ 20.6.4)
+  // Resizing interleaved data was not supported in mlinference now, just use "videoscale" to help resize input data.
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! queue ! videoscale ! video/x-raw,width=416,height=416,format=BGR ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 model=/tmp/nn/model/onnx_yolov5s_cavalry.bin dump=/tmp/dump_ml.bin ! queue ! fakesink
+
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! queue ! videoscale ! video/x-raw,width=416,height=416,format=BGR ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! filesink location=/tmp/dump_tf.bin
+
+
+ // nnstreamer, add support for resizing interleaved data(such as RGB, BGR) in amba_cvflow which was not supported in mlinference now.
+ // Compare with itselves in every loop.
+ // yolov5
+ 20.7.1)
+  // RGB
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=RGB ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! filesink location=/tmp/dump_tf.bin
+  // BGR
+  gst-launch-1.0 filesrc location=/tmp/IMX490_road_8.h264 ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! filesink location=/tmp/dump_tf.bin
+
+21) Test and validation: performance and memory leak
+ // for cv22/cv25
+ 21.1) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+ // for cv28
+ 21.2) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+// for cv52
+ 21.3) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+ // for cv72
+ 21.4) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+// for cv75
+ 21.5) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe imx274_mipi vinc_id=0x40
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams.lua
+
+ 21.6) test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+ 21.7) rtsp_server&
+
+ // For performance, add "GST_DEBUG=basesink:6" at begin of "gst-launch-1.0", get "avg frame diff" for average time per frame in log.
+ // For memory leak, get "DIRTY":
+ // $ top -m
+ // for cpu occupancy:
+ // $ top
+ // For vproc occupancy:
+ // $ cavalry_top
+ // For DRAM bandwidth statistics:
+ // $ echo duration=10000 interval=1000 verbose=1 > /proc/ambarella/dram_statistics
+ // $ cat /proc/ambarella/dram_statistics
+ 21.8)
+
+    // amba_camsrc + mlinference (yolov5) + amba_venc_overlay_bbox
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 \
+    label = /tmp/nn/in/coco_class_names.txt model= /tmp/nn/model/onnx_yolov5s_cavalry.bin \
+    type = yolov5s conf_threshold = 0.25 nms = 0.45 top_k = 100 ! queue ! amba_venc_overlay_bbox stream_id = 0 \
+    osd_offset =0 osd_size=4163584 area=0 buf_num=2 font = /tmp/arial.ttf score_lmt = 0.25 sync=false
+
+    // amba_camsrc + mlinference (tiny yolov3) + amba_venc_overlay_bbox
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = data out_name = layer115-conv out_name = layer125-conv \
+    label = /tmp/nn/in/live_voc_labels.txt model = /tmp/nn/model/yolov3_fastest_xl_cavalry.bin \
+    type = yolov3x conf_threshold = 0.8 nms = 0.3 top_k = 100 ! queue ! amba_venc_overlay_bbox stream_id = 0 \
+    osd_offset =0 osd_size=4163584 area=0 buf_num=2 font = /tmp/arial.ttf score_lmt = 0.8 sync=false
+
+    // amba_camsrc + videoscale + videoconvert + mlinference (yolov5) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! videoscale ! video/x-raw,width=416,height=416,format=NV12 ! videoconvert ! video/x-raw,format=RGBP ! queue ! \
+    mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 model= /tmp/nn/model/onnx_yolov5s_cavalry.bin ! queue ! fakesink
+
+    // amba_camsrc + mlinference (yolov5) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = images out_name = 1037 out_name = 1017 out_name = 997 model= /tmp/nn/model/onnx_yolov5s_cavalry.bin ! queue ! fakesink
+
+    // amba_camsrc + mlinference (tiny yolov3) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = data out_name = layer115-conv out_name = layer125-conv model= /tmp/nn/model/yolov3_fastest_xl_cavalry.bin ! queue ! fakesink
+
+    // amba_camsrc + mlinference (efficientnet) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = input out_name = 672 model = /tmp/efficientnet/efficientnet_cavalry.bin ! queue ! fakesink
+
+    // amba_camsrc + mlinference (efficientdet_lite0) + fakesink
+    // cv22/cv25
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = image_arrays out_name = concat_1 out_name = Sigmoid model = /tmp/nn/model/cavalry_efficientdet_lite0.bin ! queue ! fakesink
+    // tf_efficientdet_lite0
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = image_arrays out_name = Sigmoid out_name = ArgMax out_name = stack_2 model = /tmp/nn/model/tf_efficientdet_lite0_cavalry.bin ! queue ! fakesink
+
+    // amba_camsrc + mlinference (movenet_lightning) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall model = /tmp/movenet_lightning/cavalry_movenet_lightning.bin ! queue ! fakesink
+
+    // amba_camsrc + mlinference (movenet_thunder) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = serving_default_input out_name = StatefulPartitionedCall model = /tmp/movenet_thunder/cavalry_movenet_thunder.bin ! queue ! fakesink
+
+    // amba_camsrc + mlinference (fast_depth) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! mlinference in_name = input.1 out_name = 424 model = /tmp/fast_depth/onnx_fast_depth_cavalry.bin ! queue ! fakesink
+
+    // amba_camsrc + videoscale + videoconvert + tensor_converter + tensor_filter (yolov5) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! videoscale ! video/x-raw,width=416,height=416,format=NV12 ! videoconvert ! video/x-raw,format=RGBP ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! fakesink
+
+    // amba_camsrc + tensor_converter + tensor_filter (yolov5) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! queue ! fakesink
+
+    // amba_camsrc + tensor_converter + tensor_filter (tiny yolov3) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/yolov3_fastest_xl_cavalry.bin custom=in_name:data,out_name:layer115-conv+layer125-conv,in_data_fmt:0.0.8.0 ! queue ! fakesink
+
+    // amba_camsrc + tensor_converter + tensor_filter (efficientnet) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/efficientnet/efficientnet_cavalry.bin custom=in_name:input,out_name:672,in_data_fmt:0.0.0.0 ! queue ! fakesink
+
+    // amba_camsrc + tensor_converter + tensor_filter (efficientdet_lite0) + fakesink
+    // cv22/cv25
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/nn/model/cavalry_efficientdet_lite0.bin custom=in_name:image_arrays,out_name:concat_1+Sigmoid,in_data_fmt:0.0.0.0 ! queue ! fakesink
+    // tf_efficientdet_lite0
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/nn/model/tf_efficientdet_lite0_cavalry.bin custom=in_name:image_arrays,out_name:Sigmoid+ArgMax+stack_2,in_data_fmt:0.0.0.0 ! queue ! fakesink
+
+    // amba_camsrc + tensor_converter + tensor_filter (movenet_lightning) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/movenet_lightning/cavalry_movenet_lightning.bin custom=in_name:serving_default_input,out_name:StatefulPartitionedCall,in_data_fmt:0.0.0.0 ! queue ! fakesink
+
+    // amba_camsrc + tensor_converter + tensor_filter (movenet_thunder) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/movenet_thunder/cavalry_movenet_thunder.bin custom=in_name:serving_default_input,out_name:StatefulPartitionedCall,in_data_fmt:0.0.0.0 ! queue ! fakesink
+
+    // amba_camsrc + tensor_converter + tensor_filter (fast_depth) + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 amba_camsrc buf-id = 0 ! queue ! tensor_converter ! tensor_filter framework=amba_cvflow model = /tmp/fast_depth/onnx_fast_depth_cavalry.bin custom=in_name:input.1,out_name:424,in_data_fmt:0.0.0.0 ! queue ! fakesink
+
+    // amba_venccap + amba_vencdemux + h265parse/h264parse + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! fakesink \
+    d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! fakesink \
+    d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! fakesink \
+    d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! fakesink \
+    d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! fakesink \
+    d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! fakesink
+
+    // For mux related elements, do not use "top -m" to check memory. Use valgrind tool instead if enable.
+
+    // alsasrc + opusenc + mp4mux + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 -e alsasrc ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! opusenc ! mp4mux name=mux0 ! fakesink
+
+    // alsasrc + avenc_aac + mp4mux + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 -e alsasrc ! audio/x-raw,rate=48000 ! audioconvert ! avenc_aac ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! mp4mux name=mux0 ! fakesink
+
+    // amba_venccap + amba_vencdemux + h265parse + mp4mux + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 -e amba_venccap sync=true ! amba_vencdemux name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mp4mux name=mux0 ! fakesink
+
+    // amba_venccap + amba_vencdemux + h264parse + mp4mux + fakesink
+    GST_DEBUG=basesink:6 gst-launch-1.0 -e amba_venccap sync=true ! amba_vencdemux name=d d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mp4mux name=mux0 ! fakesink
+
+    // six streams h265/h264 + opus
+    GST_DEBUG=basesink:6 gst-launch-1.0 -e alsasrc ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! opusenc ! tee name=t t.src_0 ! mp4mux name=mux0 ! fakesink \
+    -e amba_venccap sync=true ! amba_vencdemux name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux0. \
+    t.src_1 ! mp4mux name=mux1 ! fakesink d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux1. \
+    t.src_2 ! mp4mux name=mux2 ! fakesink d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux2. \
+    t.src_3 ! mp4mux name=mux3 ! fakesink d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux3. \
+    t.src_4 ! mp4mux name=mux4 ! fakesink d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux4. \
+    t.src_5 ! mp4mux name=mux5 ! fakesink d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux5.
+
+    // six streams h265/h264 + aac
+    GST_DEBUG=basesink:6 gst-launch-1.0 -e alsasrc ! audio/x-raw,rate=48000 ! audioconvert ! avenc_aac ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! tee name=t t.src_0 ! mp4mux name=mux0 ! fakesink \
+    -e amba_venccap sync=true ! amba_vencdemux name=d d.stream0 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux0. \
+    t.src_1 ! mp4mux name=mux1 ! fakesink d.stream1 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux1. \
+    t.src_2 ! mp4mux name=mux2 ! fakesink d.stream2 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux2. \
+    t.src_3 ! mp4mux name=mux3 ! fakesink d.stream3 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h265parse ! mux3. \
+    t.src_4 ! mp4mux name=mux4 ! fakesink d.stream4 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux4. \
+    t.src_5 ! mp4mux name=mux5 ! fakesink d.stream5 ! queue max-size-time=0 max-size-bytes=0 max-size-buffers=0 ! h264parse ! mux5.
+
+
+ 21.9) HW decoding scenario
+ 21.9.1) init.sh --imx274_mipi
+ 21.9.2) test_aaa_service -a &
+ 21.9.3)
+    // for cv22/cv25
+    test_vout --hdmi 1080p
+    //for cv28, not support for mipi_dsi in amba_hwvdec now, skip
+    modprobe lcd_r9611
+    test_vout --mipi_dsi 1080p
+
+ 21.9.4)
+
+    // filesrc + qtdemux + opusdec + audioconvert + autoaudiosink
+    GST_DEBUG=basesink:6 gst-launch-1.0 filesrc location=h264_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink
+
+    // filesrc + qtdemux + avdec_aac + audioconvert + autoaudiosink
+    GST_DEBUG=basesink:6 gst-launch-1.0 filesrc location=h264_aac.mp4 ! qtdemux name=demuxer demuxer. ! queue ! avdec_aac ! audioconvert ! autoaudiosink
+
+    // filesrc + qtdemux + h264parse + amba_hwvdec + amba_vsink
+    GST_DEBUG=basesink:6 gst-launch-1.0 filesrc location=h264_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink
+
+    // filesrc + qtdemux + h265parse + amba_hwvdec + amba_vsink
+    GST_DEBUG=basesink:6 gst-launch-1.0 filesrc location=h265_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h265parse ! amba_hwvdec ! amba_vsink
+
+    // Audio(opus) + Video(h264)
+    GST_DEBUG=basesink:6 gst-launch-1.0 filesrc location=h264_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink \
+    demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink async=false
+
+    // Audio(opus) + Video(h265)
+    GST_DEBUG=basesink:6 gst-launch-1.0 filesrc location=h265_opus.mp4 ! qtdemux name=demuxer demuxer. ! queue ! opusdec ! audioconvert ! autoaudiosink \
+    demuxer. ! queue ! h265parse ! amba_hwvdec ! amba_vsink async=false
+
+    // Audio(aac) + Video(h264)
+    GST_DEBUG=basesink:6 gst-launch-1.0 filesrc location=h264_aac.mp4 ! qtdemux name=demuxer demuxer. ! queue ! avdec_aac ! audioconvert ! autoaudiosink \
+    demuxer. ! queue ! h264parse ! amba_hwvdec ! amba_vsink async=false
+
+    // Audio(aac) + Video(h265)
+    GST_DEBUG=basesink:6 gst-launch-1.0 filesrc location=h265_aac.mp4 ! qtdemux name=demuxer demuxer. ! queue ! avdec_aac ! audioconvert ! autoaudiosink \
+    demuxer. ! queue ! h265parse ! amba_hwvdec ! amba_vsink async=false
+
+22) Test and validation: RTSP, RTP
+ // for cv22/cv25
+ 22.1) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+ // for cv28
+ 22.2) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --imx274_mipi
+       test_aaa_service -a &
+       modprobe lcd_r9611
+       test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+
+// for cv52
+ 22.3) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv52_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+ // for cv72
+ 22.4) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+       test_aaa_service -a &
+       test_encode --resource-cfg cv72_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+
+// for cv75
+ 22.5) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe imx274_mipi vinc_id=0x40
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams.lua
+
+ 22.6) test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 480p -b 2 -e -D -h 480p -b 3 -e -E -H 480p -b 4 -e -S 5 -h 480p -b 5 -e
+
+ // rtsp
+ 22.7)
+  // test-launch, APP generated in /ambarella/out/yocto_out/cvxx/tmp/work/cortexaxx-poky-linux/gstreamer1.0-rtsp-server/x.xx.x-r0/build/examples/
+  // test-launch-v2 was modified from test-lauch so that RTSP server can send multiple streams.
+  // VLC network URL below: rtsp://10.0.0.2:8554/test
+  // h264
+  ./test-launch "( amba_venccap ! amba_vencdemux name=d d.stream1 ! queue ! h264parse ! rtph264pay name=pay0 pt=96 )"
+  ./test-launch-v2 "( amba_venccap ! amba_vencdemux name=d d.stream1 ! queue ! h264parse ! rtph264pay name=pay0 pt=96 )"
+  //h265
+  ./test-launch "( amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! rtph265pay name=pay0 pt=96 )"
+  ./test-launch-v2 "( amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! rtph265pay name=pay0 pt=96 )"
+
+  // 6 streams, just give a format of creating a port with 6 mounts by test-launch-v2.
+  // amba_venccap cannot be called by different pipelines at the same time which would cause issues now.
+  // VLC network URL below: rtsp://10.0.0.2:8554/test0, rtsp://10.0.0.2:8554/test1, rtsp://10.0.0.2:8554/test2......
+  // "-c" was used for setup the counts of video streams or pipelines, default 1.
+  ./test-launch-v2 -c 6 "( amba_venccap stream-id= 0 ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! rtph265pay name=pay0 pt=96 )" "( amba_venccap stream-id= 1 ! amba_vencdemux name=d d.stream1 ! queue ! h264parse ! rtph264pay name=pay0 pt=96 )" "( amba_venccap stream-id= 2 ! amba_vencdemux name=d d.stream2 ! queue ! h265parse ! rtph265pay name=pay0 pt=96 )" "( amba_venccap stream-id= 3 ! amba_vencdemux name=d d.stream3 ! queue ! h264parse ! rtph264pay name=pay0 pt=96 )" "( amba_venccap stream-id= 4 ! amba_vencdemux name=d d.stream4 ! queue ! h265parse ! rtph265pay name=pay0 pt=96 )" "( amba_venccap stream-id= 5 ! amba_vencdemux name=d d.stream5 ! queue ! h264parse ! rtph264pay name=pay0 pt=96 )"
+
+ // udp
+ 22.8)
+  // h265
+  gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! rtph265pay ! queue ! udpsink host=127.0.0.1 port=8554
+
+  gst-launch-1.0 -e udpsrc port=8554 ! application/x-rtp,encoding-name=H265 ! queue ! rtph265depay ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_0.mp4
+
+  // h264
+  gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=d d.stream1 ! queue ! h264parse ! rtph264pay ! queue ! udpsink host=127.0.0.1 port=8555
+
+  gst-launch-1.0 -e udpsrc port=8555 ! application/x-rtp,encoding-name=H264 ! queue ! rtph264depay ! queue ! h264parse ! qtmux ! filesink location=/tmp/h264_1.mp4
+
+  // 6 streams
+  gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! rtph265pay ! queue ! udpsink host="127.0.0.1" port=8554 d.stream1 ! queue ! h264parse ! rtph264pay ! queue ! udpsink host="127.0.0.1" port=8555 d.stream2 ! queue ! h265parse ! rtph265pay ! queue ! udpsink host="127.0.0.1" port=8556 d.stream3 ! queue ! h264parse ! rtph264pay ! queue ! udpsink host="127.0.0.1" port=8557 d.stream4 ! queue ! h265parse ! rtph265pay ! queue ! udpsink host="127.0.0.1" port=8558 d.stream5 ! queue ! h264parse ! rtph264pay ! queue ! udpsink host="127.0.0.1" port=8559
+
+  gst-launch-1.0 -e udpsrc port=8554 ! application/x-rtp,encoding-name=H265 ! queue ! rtph265depay ! queue ! h265parse ! qtmux name=mux ! filesink location=/tmp/h265_0.mp4 -e udpsrc port=8555 ! application/x-rtp,encoding-name=H264 ! queue ! rtph264depay ! queue ! h264parse ! qtmux ! filesink location=/tmp/h264_1.mp4 -e udpsrc port=8556 ! application/x-rtp,encoding-name=H265 ! queue ! rtph265depay ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_2.mp4 -e udpsrc port=8557 ! application/x-rtp,encoding-name=H264 ! queue ! rtph264depay ! queue ! h264parse ! qtmux ! filesink location=/tmp/h264_3.mp4 -e udpsrc port=8558 ! application/x-rtp,encoding-name=H265 ! queue ! rtph265depay ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_4.mp4 -e udpsrc port=8559 ! application/x-rtp,encoding-name=H264 ! queue ! rtph264depay ! queue ! h264parse ! qtmux ! filesink location=/tmp/h264_5.mp4
+
+
+ // tcp
+ // issue: Buffer has no PTS
+ 22.9)
+  gst-launch-1.0 -e amba_venccap ! amba_vencdemux name=d d.stream0 ! queue ! h265parse ! rtph265pay ! rtpstreampay ! queue ! tcpserversink host=127.0.0.1 port=8554
+
+  gst-launch-1.0 -e tcpclientsrc host=127.0.0.1 port=8554 do-timestamp=true ! application/x-rtp-stream,encoding-name=H265 ! queue ! rtpstreamdepay ! rtph265depay ! queue ! h265parse ! qtmux ! filesink location=/tmp/h265_0.mp4
+
+23) Test and validation: draw bmp/string/time on overlay (ambarella plugin)
+ // If use overlay, please configure canvas encode dummy latency first, and enc_dummy_latency should be > 0.
+ // User also need to setup the properties of address offset (osd_offset) and size (osd_size) of overlay areas for current stream.
+
+ // draw 8-bit on overlay
+ // for cv22/cv25
+ 23.1) modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --imx274_mipi
+      test_aaa_service -a &
+      test_encode --hdmi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+
+ // for cv28
+ 23.2) modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --imx274_mipi
+      test_aaa_service -a &
+      modprobe lcd_r9611
+      test_encode --mipi_dsi 1080p --resource-cfg /home/root/dualvin_sixstreams.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+
+ // for cv52
+ 23.3) modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg cv52_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+ // for cv72
+ 23.4)
+      modprobe cavalry
+      cavalry_load -f /lib/firmware/cavalry.bin -r
+      init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+      test_aaa_service -a &
+      test_encode --resource-cfg cv72_vin0_1_6_streams.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+      test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+
+// for cv75
+ 23.5) modprobe cavalry
+       cavalry_load -f /lib/firmware/cavalry.bin -r
+       init.sh --na; modprobe imx274_mipi vinc_id=0x40
+       test_aaa_service -a &
+       test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams.lua
+       test_encode -A -H 1080p -b 0 -e -B -H 1080p -b 1 -e -C -H 480p -b 2 -e -D -H 480p -b 3 -e -E -h 480p -b 4 -e -S 5 -h 480p -b 5 -e
+      rtsp_server&
+
+ // amba_overlay_src + amba_venc_overlay
+ // roi format[x.y.w.h]
+ // for 8-bit yuv lookup table format, color related params' format were Hexadecimal number[v(8-bit)u(8-bit)y(8-bit)a(8-bit)].
+ // osd_size = clut size(16x1024) + data size(area_w * area_h * buf_num)
+
+ // draw bmp. Here is a 8-bit YUV lookup table picture.
+ 23.6)
+  gst-launch-1.0 amba_overlay_src osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:/tmp/picture/Ambarella-256x128-8bit.bmp \
+! queue ! amba_venc_overlay stream_id=0 osd_offset=0 osd_size=81920
+
+ // draw string "HelloAmbarella"
+ 23.7)
+  gst-launch-1.0 amba_overlay_src osd=area_id:0,enable:1,roi:960.540.384.96,bg_color:8080eb00,buf_num:2,type:string,str:HelloAmbarella,\
+font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:9210d2ff,\
+text_bg_color:223691ff,ol_color:f05a52ff ! queue ! amba_venc_overlay stream_id=0 osd_offset =0 osd_size=90112
+
+ // draw time, need to setup update intervals
+ // format: 0(%s%04d-%02d-%02d), 1(%s%02d/%02d/%04d), 2(%s%02d/%02d/%04d), 3(%s%04d/%02d/%02d)
+ 23.8)
+  //setup initial time on board
+  date -s "2024-5-13 15:16:00"
+
+  gst-launch-1.0 amba_overlay_src osd=area_id:0,enable:1,roi:1408.0.512.72,bg_color:8080eb00,buf_num:2,type:time,\
+en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,\
+font_hor_bold:1,font_color:8080ebff,text_bg_color:8080eb00,ol_color:f05a52ff,update:30 ! queue ! \
+amba_venc_overlay stream_id=0 osd_offset =0 osd_size=90112
+
+ // 3 areas, draw bmp + string + time
+ 23.9)
+  gst-launch-1.0 amba_overlay_src osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:/tmp/picture/Ambarella-256x128-8bit.bmp,\
+area_id:1,enable:1,roi:960.540.352.96,bg_color:8080eb00,buf_num:2,type:string,str:HelloAmbarella,font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:9210d2ff,text_bg_color:223691ff,ol_color:f05a52ff,\
+area_id:2,enable:1,roi:1408.0.512.72,bg_color:8080eb00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:8080ebff,text_bg_color:8080eb00,ol_color:f05a52ff,update:30 \
+! queue ! amba_venc_overlay stream_id=0 osd_offset =0 osd_size=262144
+
+ // For DSP V6, setup "overlay_pixel_format" in the "stream_x" section of lua to enable 16-bit and 32-bit formats
+ 23.10)
+  // for cv52
+  23.10.1)
+   modprobe cavalry
+   cavalry_load -f /lib/firmware/cavalry.bin -r
+   init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+   test_aaa_service -a &
+   test_encode --resource-cfg cv52_vin0_1_6_streams_osd_pix_fmt.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+   test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 480p -b 2 -e -D -h 480p -b 3 -e
+   rtsp_server&
+  // for cv72
+  23.10.2)
+   modprobe cavalry
+   cavalry_load -f /lib/firmware/cavalry.bin -r
+   init.sh --na; modprobe max9296  id=0x0303 vinc_id=0xb8; modprobe os08a10_mipi_brg fsync=1
+   test_aaa_service -a &
+   test_encode --resource-cfg cv72_vin0_1_6_streams_osd_pix_fmt.lua --vout-cfg /usr/share/ambarella/lua_scripts/vout_hdmi.lua
+   test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 480p -b 2 -e -D -h 480p -b 3 -e
+   rtsp_server&
+  // for cv75
+  23.10.3)
+   modprobe cavalry
+   cavalry_load -f /lib/firmware/cavalry.bin -r
+   init.sh --na; modprobe imx274_mipi vinc_id=0x40
+   test_aaa_service -a &
+   test_encode --resource-cfg /home/root/cv75_vin0_1_6_streams_osd_pix_fmt.lua
+   test_encode -A -H 1080p -b 0 -e -B -h 1080p -b 1 -e -C -H 480p -b 2 -e -D -h 480p -b 3 -e
+   rtsp_server&
+
+  // for yuv related pixel format, setup color related properties as Hexadecimal number[v(8-bit)u(8-bit)y(8-bit)a(8-bit)].
+  // for rgb related pixel format, setup color related properties as Hexadecimal number[b(8-bit)g(8-bit)r(8-bit)a(8-bit)].
+
+  // set "overlay_pixel_format = 0" in the "stream_0" section of lua. The drawing format is 8-bit YUV lookup table.
+  // set "overlay_pixel_format = 1" in the "stream_1" section of lua. The drawing format is 16-bit RGB565.
+  // set "overlay_pixel_format = 14" in the "stream_2" section of lua. The drawing format is 16-bit argb1555.
+  // set "overlay_pixel_format = 19" in the "stream_3" section of lua. The drawing format is 32-bit argb8888.
+
+  // stream_1, draw 16bits
+  23.10.4)
+   //rgb565 bmp
+   gst-launch-1.0 amba_overlay_src draw_format=rgb565  osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,\
+bmp:/tmp/picture/Ambarella-256x128-rgb565.bmp ! queue ! amba_venc_overlay stream_id=1 osd_offset=256000 osd_size=147456
+
+   //string
+   gst-launch-1.0 amba_overlay_src draw_format=rgb565 osd=area_id:0,enable:1,roi:960.540.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,\
+font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff \
+! queue ! amba_venc_overlay stream_id=1 osd_offset=256000 osd_size=151552
+
+   //time
+   gst-launch-1.0 amba_overlay_src draw_format=rgb565 osd=area_id:0,enable:1,roi:1408.0.512.72,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,\
+font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 \
+! queue ! amba_venc_overlay stream_id=1 osd_offset =256000 osd_size=163840
+
+   // 3 areas, draw bmp + string + time
+   gst-launch-1.0 amba_overlay_src draw_format=rgb565 osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:/tmp/picture/Ambarella-256x128-rgb565.bmp,\
+area_id:1,enable:1,roi:960.540.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff,\
+area_id:2,enable:1,roi:1408.0.512.72,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 \
+! queue ! amba_venc_overlay stream_id=1 osd_offset =256000 osd_size=462848
+
+  // stream_2, draw 16bits
+  23.10.5)
+   //argb1555 bmp
+   gst-launch-1.0 amba_overlay_src draw_format=argb1555  osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,\
+bmp:/tmp/picture/Ambarella-256x128-argb1555.bmp ! queue ! amba_venc_overlay stream_id=2 osd_offset=718848 osd_size=147456
+
+   //string
+   gst-launch-1.0 amba_overlay_src draw_format=argb1555 osd=area_id:0,enable:1,roi:360.240.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,\
+font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff \
+! queue ! amba_venc_overlay stream_id=2 osd_offset=718848 osd_size=151552
+
+   //time
+   gst-launch-1.0 amba_overlay_src draw_format=argb1555 osd=area_id:0,enable:1,roi:368.0.352.52,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,\
+font_name:/tmp/arial.ttf,font_size:24,font_outline_w:2,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 \
+! queue ! amba_venc_overlay stream_id=2 osd_offset =718848 osd_size=89600
+
+   // 3 areas, draw bmp + string + time
+   gst-launch-1.0 amba_overlay_src draw_format=argb1555 osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:/tmp/picture/Ambarella-256x128-argb1555.bmp,\
+area_id:1,enable:1,roi:360.240.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff,\
+area_id:2,enable:1,roi:368.0.352.52,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:/tmp/arial.ttf,font_size:24,font_outline_w:2,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 \
+! queue ! amba_venc_overlay stream_id=2 osd_offset =718848 osd_size=388608
+
+  // stream_3, draw 32bits
+  23.10.6)
+   //argb8888 bmp
+   gst-launch-1.0 amba_overlay_src draw_format=argb8888 osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,\
+bmp:/tmp/picture/Ambarella-256x128-argb8888.bmp ! queue ! amba_venc_overlay stream_id=3 osd_offset=1107456 osd_size=278528
+
+   //string
+   gst-launch-1.0 amba_overlay_src draw_format=argb8888 osd=area_id:0,enable:1,roi:360.240.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,\
+font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff \
+! queue ! amba_venc_overlay stream_id=3 osd_offset=1107456 osd_size=286720
+
+   //time
+   gst-launch-1.0 amba_overlay_src draw_format=argb8888 osd=area_id:0,enable:1,roi:368.0.352.52,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,\
+font_name:/tmp/arial.ttf,font_size:24,font_outline_w:2,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 \
+! queue ! amba_venc_overlay stream_id=3 osd_offset =1107456 osd_size=162816
+
+   // 3 areas, draw bmp + string + time
+   gst-launch-1.0 amba_overlay_src draw_format=argb8888 osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:/tmp/picture/Ambarella-256x128-argb8888.bmp,\
+area_id:1,enable:1,roi:360.240.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,font_name:/tmp/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff,\
+area_id:2,enable:1,roi:368.0.352.52,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:/tmp/arial.ttf,font_size:24,font_outline_w:2,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 \
+! queue ! amba_venc_overlay stream_id=3 osd_offset =1107456 osd_size=728064
+
+  // mimic 4 streams scenario
+  23.10.7)
+   gstd
+   gst-client (on another console)
+
+   //in gst-client, create pipeline
+   pipeline_create p0 amba_overlay_src osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:./win/picture/Ambarella-256x128-8bit.bmp,area_id:1,enable:1,roi:960.540.352.96,bg_color:8080eb00,buf_num:2,type:string,str:HelloAmbarella,font_name:./win/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:9210d2ff,text_bg_color:223691ff,ol_color:f05a52ff,area_id:2,enable:1,roi:1408.0.512.72,bg_color:8080eb00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:./win/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:8080ebff,text_bg_color:8080eb00,ol_color:f05a52ff,update:30 ! queue ! amba_venc_overlay stream_id=0 osd_offset =0 osd_size=256000
+
+   pipeline_create p1 amba_overlay_src draw_format=rgb565 osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:./win/picture/Ambarella-256x128-rgb565.bmp,area_id:1,enable:1,roi:960.540.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,font_name:./win/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff,area_id:2,enable:1,roi:1408.0.512.72,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:./win/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 ! queue ! amba_venc_overlay stream_id=1 osd_offset =256000 osd_size=462848
+
+   pipeline_create p2 amba_overlay_src draw_format=argb1555 osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:./win/picture/Ambarella-256x128-argb1555.bmp,area_id:1,enable:1,roi:360.240.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,font_name:./win/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff,area_id:2,enable:1,roi:368.0.352.52,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:./win/arial.ttf,font_size:24,font_outline_w:2,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 ! queue ! amba_venc_overlay stream_id=2 osd_offset =718848 osd_size=388608
+
+   pipeline_create p3 amba_overlay_src draw_format=argb8888 osd=area_id:0,enable:1,roi:0.0.256.128,bg_color:8080eb00,buf_num:2,type:picture,bmp:./win/picture/Ambarella-256x128-argb8888.bmp,area_id:1,enable:1,roi:360.240.352.96,bg_color:ffffff00,buf_num:2,type:string,str:HelloAmbarella,font_name:./win/arial.ttf,font_size:32,font_outline_w:4,font_ver_bold:1,font_hor_bold:1,font_color:00ffffff,text_bg_color:00ff00ff,ol_color:0000ffff,area_id:2,enable:1,roi:368.0.352.52,bg_color:ffffff00,buf_num:2,type:time,en_msec:0,format:0,is_12h:0,pre_str:BJT,font_name:./win/arial.ttf,font_size:24,font_outline_w:2,font_ver_bold:1,font_hor_bold:1,font_color:ffffffff,text_bg_color:ffffff00,ol_color:0000ffff,update:30 ! queue ! amba_venc_overlay stream_id=3 osd_offset =1107456 osd_size=728064
+
+   pipeline_play p0
+   pipeline_play p1
+   pipeline_play p2
+   pipeline_play p3
+
+   pipeline_stop p0
+   pipeline_stop p1
+   pipeline_stop p2
+   pipeline_stop p3
+
+   pipeline_delete p0
+   pipeline_delete p1
+   pipeline_delete p2
+   pipeline_delete p3
+
+24) USB UVC stream + sw decoding + machine learning scenario
+ 24.1)
+  modprobe cavalry
+  cavalry_load -f /lib/firmware/cavalry.bin -r
+
+ // 'YUYV' (YUYV 4:2:2) to yolov5
+ 24.2)
+  // setup the video capture format
+  v4l2-ctl --set-fmt-video=pixelformat=YUYV
+
+  gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=RGBP ! queue ! \
+tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0,nn_out_f32:1 ! tensor_decoder mode=bounding_boxes_ori \
+option1=amba_yolov5 option2=/tmp/nn/in/coco_class_names.txt option3=f:0.25,nms:0.45,top_k:100 option5=416:416 ! fakesink
+
+ // 'MJPG' (Motion-JPEG, compressed) to yolov5
+ 24.3)
+  // setup the video capture format
+  v4l2-ctl --set-fmt-video=pixelformat=MJPG
+
+  // decoder: jpegdec
+  gst-launch-1.0 v4l2src device=/dev/video0 ! jpegdec ! videoconvert ! video/x-raw,format=RGBP ! queue ! \
+tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0,nn_out_f32:1 ! tensor_decoder mode=bounding_boxes_ori \
+option1=amba_yolov5 option2=/tmp/nn/in/coco_class_names.txt option3=f:0.25,nms:0.45,top_k:100 option5=416:416 ! fakesink
+
+  // decoder: avdec_mjpeg
+  gst-launch-1.0 v4l2src device=/dev/video0 ! avdec_mjpeg ! videoconvert ! video/x-raw,format=RGBP ! queue ! \
+tensor_converter ! tensor_filter framework=amba_cvflow model=/tmp/nn/model/onnx_yolov5s_cavalry.bin \
+custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0,nn_out_f32:1 ! tensor_decoder mode=bounding_boxes_ori \
+option1=amba_yolov5 option2=/tmp/nn/in/coco_class_names.txt option3=f:0.25,nms:0.45,top_k:100 option5=416:416 ! fakesink
+
+25) use gsteamer in lychee os
+  //notice: this part should be run in lychee os
+  //usable videosink in lychee include waylandsink and xvimagesink
+
+  25.1) fileinput decoding and native playpack
+
+  // playback h264 with waylandsink
+  gst-launch-1.0 filesrc location=~/tmp_data/test.h264 ! h264parse ! avdec_h264 ! \
+  videoconvert ! queue ! videoscale ! video/x-raw,width=640,height=360 ! queue ! waylandsink
+
+  // playback mp4 (only video part) with xvimagesink
+  gst-launch-1.0 filesrc location=~/tmp_data/IMX490_road_8_h264.mp4 ! qtdemux name=demuxer demuxer. ! queue ! h264parse ! avdec_h264 ! \
+  videoconvert ! queue ! videoscale ! video/x-raw,width=640,height=360 ! queue ! xvimagesink
+
+  25.2) multiple fileinput decoding and composite display
+
+  // decode 6 h246 streams
+  gst-launch-1.0 compositor name=comp \
+  sink_0::xpos=0 sink_0::ypos=0 sink_0::width=640 sink_0::height=360 \
+  sink_1::xpos=640 sink_1::ypos=0 sink_1::width=640 sink_1::height=360 \
+  sink_2::xpos=1280 sink_2::ypos=0 sink_2::width=640 sink_2::height=360 \
+  sink_3::xpos=0 sink_3::ypos=360 sink_3::width=640 sink_3::height=360 \
+  sink_4::xpos=640 sink_4::ypos=360 sink_4::width=640 sink_4::height=360 \
+  sink_5::xpos=1280 sink_5::ypos=360 sink_5::width=640 sink_5::height=360 ! \
+  videoconvert ! queue ! xvimagesink sync=false \
+  filesrc location=~/tmp_data/test.h264 ! h264parse ! avdec_h264 ! comp.sink_0 \
+  filesrc location=~/tmp_data/test.h264 ! h264parse ! avdec_h264 ! comp.sink_1 \
+  filesrc location=~/tmp_data/test.h264 ! h264parse ! avdec_h264 ! comp.sink_2 \
+  filesrc location=~/tmp_data/test.h264 ! h264parse ! avdec_h264 ! comp.sink_3 \
+  filesrc location=~/tmp_data/test.h264 ! h264parse ! avdec_h264 ! comp.sink_4 \
+  filesrc location=~/tmp_data/test.h264 ! h264parse ! avdec_h264 ! comp.sink_5
+
+  25.3) fileinput decoding, nn inference and result display
+
+  // decode h264 and run yolov5s
+  gst-launch-1.0 -v filesrc location=~/tmp_data/test.h264 ! h264parse ! avdec_h264 ! queue ! \
+  videoconvert ! videoscale ! video/x-raw,width=1280,height=720,format=RGBP ! tee name=t \
+  t. ! queue ! videoscale ! video/x-raw,width=416,height=416 ! tensor_converter ! \
+  tensor_filter framework=amba_cvflow model=~/tmp_data/cv3_yolov5s.bin custom=in_name:images,out_name:1037+1017+997,in_data_fmt:0.0.8.0 ! \
+  tensor_decoder mode=bounding_boxes option1=amba_yolov5 option2=~/tmp_data/coco_class_names.txt option4=1280:720 option5=416:416 ! \
+  comp.sink_0 \
+  t. ! queue ! comp.sink_1 \
+  compositor name=comp sink_0::zorder=2 sink_1::zorder=1 ! videoconvert ! xvimagesink sync=false
+
+  25.4) live camera capture and display on lychee desktop
+
+  // waylandsink display
+  gst-launch-1.0 -v amba_camsrc buf-id=0 ! queue ! \
+  videoconvert ! videoscale ! video/x-raw,width=640,height=360 ! waylandsink
+
+  // xvimagesink display
+  gst-launch-1.0 -v amba_camsrc buf-id=0 ! queue ! \
+  videoconvert ! videoscale ! video/x-raw,width=640,height=360 ! xvimagesink
+
+  25.5) multiple live camera capture and composite display
+  // capture 6 channels
+  gst-launch-1.0 compositor name=comp \
+  sink_0::xpos=0 sink_0::ypos=0 sink_0::width=640 sink_0::height=360 \
+  sink_1::xpos=640 sink_1::ypos=0 sink_1::width=640 sink_1::height=360 \
+  sink_2::xpos=1280 sink_2::ypos=0 sink_2::width=640 sink_2::height=360 \
+  sink_3::xpos=0 sink_3::ypos=360 sink_3::width=640 sink_3::height=360 \
+  sink_4::xpos=640 sink_4::ypos=360 sink_4::width=640 sink_4::height=360 \
+  sink_5::xpos=1280 sink_5::ypos=360 sink_5::width=640 sink_5::height=360 ! \
+  queue ! videoconvert ! queue ! xvimagesink \
+  amba_camsrc buf-id=0 ! queue ! comp.sink_0 \
+  amba_camsrc buf-id=1 ! queue ! comp.sink_1 \
+  amba_camsrc buf-id=2 ! queue ! comp.sink_2 \
+  amba_camsrc buf-id=3 ! queue ! comp.sink_3 \
+  amba_camsrc buf-id=4 ! queue ! comp.sink_4 \
+  amba_camsrc buf-id=5 ! queue ! comp.sink_5
+
+
+a) Known issues:
+  a.1) stuck in "amba_vencdemux" element when running with multichannel streams.
+    For too many streams, it's needed to setup "alloc_mem=1" in "amba_venccap" element, "max-size-time=0 max-size-bytes=0 max-size-buffers=0" in "queue" element.
+  a.2) stuck when playbacking (HW decoding) video and audio at the same time
+    User can set the parameter "async=false" in the sink element.
+  a.3) slices of frame dropped with gstinterpipe for multichannel streams.
+    For h265 stream, it's random to drop some slices at start.
+
+b) Notice:
+  b.1) Starting GStreamer Daemon (default newer version)
+    For newer version of gstd_0.15.0 in recipe-oss, simply run "gstd".
+    For yocto community version of gstd(1.0+really0.8.0) in recipe-multimeida, run "gstd -D".
+  b.2) Audio/Video synchronization
+    User can set the parameter "sync=true" in "amba_venccap" element, default sync=true.
+  b.3) Setup data formats of input tensors in tensor_filter's sub-plugin "amba_cvflow".
+    Refered to the doc of CNNGen, setup the params[sign.datasize.exp_offset.exp_bits].
+    If not set, refered to tensor types of input tensors, default _NNS_UINT8->[0.0.8.0]([0,2^(8-0)/2^8)), _NNS_FLOAT32->[1.2.0.7](IEEE-754)
+
+

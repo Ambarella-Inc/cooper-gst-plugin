@@ -1,0 +1,71 @@
+##
+##
+## History:
+##   Jun 3, 2022 - [Zhi He] created file
+##
+## Copyright (c) 2022 Ambarella International LP
+##
+## This library is free software; you can redistribute it and/or
+## modify it under the terms of the GNU Library General Public
+## License as published by the Free Software Foundation; either
+## version 2 of the License, or (at your option) any later version.
+##
+## This library is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+## Library General Public License for more details.
+##
+## You should have received a copy of the GNU Library General Public
+## License along with this library; if not, write to the
+## Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+## Boston, MA 02110-1301, USA.
+##
+
+menuconfig BUILD_AMBARELLA_GST_PLUGIN
+  bool "Build Ambarella GStreamer Plugin"
+  select CONFIG_AMBARELLA_GLIB_SUPPORT
+  select CONFIG_AMBARELLA_GSTREAMER_SUPPORT
+  select CONFIG_AMBARELLA_GSTREAMER_PLUGINS_BASE_SUPPORT
+  select CONFIG_AMBARELLA_GSTREAMER_PLUGINS_GOOD_SUPPORT
+  select CONFIG_AMBARELLA_GSTREAMER_PLUGINS_BAD_SUPPORT
+  select CONFIG_AMBARELLA_GSTREAMER_PLUGINS_UGLY_SUPPORT
+  select CONFIG_AMBARELLA_GSTREAMER_RTSP_SERVER_SUPPORT
+  default n
+  help
+    Build Ambarella GStreamer Plugin
+
+if BUILD_AMBARELLA_GST_PLUGIN
+
+config BUILD_AMBARELLA_GST_VPROC
+  select CONFIG_AMBARELLA_AICAM_PREBUILD
+  select CONFIG_AMBARELLA_SW_CVLIB
+  bool "Build Ambarella VPROC support"
+  default y
+  help
+    Build Ambarella VPROC support
+
+config BUILD_AMBARELLA_GST_CAVALRY
+  select BUILD_AMBARELLA_CAVALRY_DRV
+  bool "Build Ambarella CAVALRY support"
+  default y
+  help
+    Build Ambarella CAVALRY support.
+
+config BUILD_AMBARELLA_GST_DRAW_TEXT
+    select BUILD_AMBARELLA_LW_APP_UTILS_PACKAGE
+    select BUILD_AMBARELLA_LW_APP_UTILS_LIBRARY
+    bool "Build AMBARELLA Draw TEXT support"
+    default y
+    help
+        Build Ambarella Draw TEXT support.
+
+config BUILD_AMBARELLA_GST_PLUGIN_TEST
+  bool "Build Ambarella GStreamer Plugin Unit Test"
+  depends on BUILD_AMBARELLA_GST_VPROC
+  depends on BUILD_AMBARELLA_GST_CAVALRY
+  depends on BUILD_AMBARELLA_GST_DRAW_TEXT
+  default n
+  help
+    Build Ambarella GStreamer Plugin Unit Test
+
+endif

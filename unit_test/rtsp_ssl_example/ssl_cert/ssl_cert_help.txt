@@ -1,0 +1,35 @@
+#[Step 1]: generate CA key and CA cert
+
+lychee$ openssl genpkey -algorithm RSA -out new_ca_key.pem -pkeyopt rsa_keygen_bits:2048 \
+-pkeyopt rsa_keygen_pubexp:65537 -pass pass:1234 -aes-256-cbc
+lychee$ openssl pkey -in new_ca_key.pem -out new_ca_key_dec.pem  -passin pass:1234
+lychee$ openssl req -new -x509 -days 3650 -key new_ca_key.pem -out new_ca_cert.crt \
+-subj /C=CN/ST=SH/L=PD/O=test/OU=test/CN=testCA/emailAddress=ca@test.com -passin pass:1234
+
+#[Step 2]: generate server key and use CA cert sign server cert
+
+lychee$ openssl genpkey -algorithm RSA -out new_server_key.pem -pkeyopt rsa_keygen_bits:2048 \
+-pkeyopt rsa_keygen_pubexp:65537 -pass pass:1234 -aes-256-cbc
+lychee$ openssl pkey -in new_server_key.pem -out new_server_key_dec.pem  -passin pass:1234
+lychee$ openssl req -new -key new_server_key.pem -out new_server_req.csr \
+-subj /C=CN/ST=SH/L=PD/O=test/OU=test/CN=testSVR/emailAddress=svr@test.com -passin pass:1234
+lychee$ openssl x509 -req -days 3650 -CA new_ca_cert.crt -CAkey new_ca_key.pem -CAserial ca.srl -CAcreateserial \
+-in new_server_req.csr -out new_server_cert.crt -passin pass:1234
+
+#[Step 3]: generate client key and use CA cert sign client cert
+
+lychee$ openssl genpkey -algorithm RSA -out new_client_key.pem -pkeyopt rsa_keygen_bits:2048 \
+-pkeyopt rsa_keygen_pubexp:65537 -pass pass:1234 -aes-256-cbc
+lychee$ openssl pkey -in new_client_key.pem -out new_client_key_dec.pem  -passin pass:1234
+lychee$ openssl req -new -key new_client_key.pem -out new_client_req.csr \
+-subj /C=CN/ST=SH/L=PD/O=test/OU=test/CN=testCLT/emailAddress=clt@test.com -passin pass:1234
+lychee$ openssl x509 -req -days 3650 -CA new_ca_cert.crt -CAkey new_ca_key.pem -CAserial ca.srl -CAcreateserial \
+-in new_client_req.csr -out new_client_cert.crt -passin pass:1234
+
+#[Step 4]: Update new keys and certs in lychee
+
+lychee$ chmod 0644 ./new*
+lychee$ sudo chown root:root ./new*
+lychee$ sudo cp -a ./new* /usr/share/ambarella/gst_rtsp_ssl/cert/
+lychee$ sudo cp new_ca_cert.crt /etc/pki/ca-trust/source/anchors/
+lychee$ sudo update-ca-trust
